@@ -4,20 +4,22 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Key, 
-  FileText 
+  FileText, 
+  TerminalSquareIcon
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-    { icon: Key, label: 'API Keys', href: '/dashboard/keys' },
+    { icon: LayoutDashboard, label: 'Home', href: '/' },
+    { icon: TerminalSquareIcon, label: 'Playground', href: '/playground' },
+    { icon: Key, label: 'API Keys', href: '/playground/keys' },
     { icon: FileText, label: 'Docs', href: '/docs' },
   ];
 
   return (
-    <div className="w-16 h-screen bg-zinc-900 border-r border-zinc-800 flex flex-col items-center py-4">
+    <div className="w-16 h-screen bg-black border-r border-zinc-800 flex flex-col items-center py-4">
       {navItems.map((item) => (
         <Link
           key={item.href}
@@ -28,7 +30,7 @@ export default function Sidebar() {
           title={item.label}
         >
           <item.icon
-            className={`w-6 h-6 ${
+            className={`w-4 h-4 ${
               pathname === item.href ? 'text-white' : 'text-zinc-400'
             } group-hover:text-white`}
           />

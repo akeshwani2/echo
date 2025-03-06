@@ -1,6 +1,9 @@
 'use client'
-import { ArrowUpIcon, CircleArrowUpIcon } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { ArrowUpIcon, CircleArrowUpIcon, TrashIcon, XIcon, InfoIcon, Trash2Icon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+
+const MEMORY_INSTRUCTIONS = "\nPlease remember important details about me and my preferences.";
+const memoryContext = "";
 
 interface Message {
   text: string;
@@ -19,12 +22,23 @@ export default function Chat() {
   const [inputMessage, setInputMessage] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState('gpt-4');
+  const [model, setModel] = useState('gpt-4o-mini');
   const [memories, setMemories] = useState<Memory[]>([]);
   const [systemPrompt, setSystemPrompt] = useState(
     "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you."
   );
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
+  const [showTempInfo, setShowTempInfo] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // Check for API key on component mount
+    const apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      window.location.href = '/playground/keys';
+    }
+  }, []);
 
   useEffect(() => {
     async function loadMemories() {
@@ -42,6 +56,38 @@ export default function Chat() {
       }
     }
     loadMemories();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && 
+          buttonRef.current && 
+          !tooltipRef.current.contains(event.target as Node) && 
+          !buttonRef.current.contains(event.target as Node)) {
+        setShowTempInfo(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    async function loadMessages() {
+      try {
+        const response = await fetch('/api/messages');
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp)
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    }
+    loadMessages();
   }, []);
 
   const handleDeleteMemory = async (id: string) => {
@@ -66,6 +112,12 @@ export default function Chat() {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
+    const apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      window.location.href = '/playground/keys';
+      return;
+    }
+
     const newMessage: Message = {
       text: inputMessage,
       isUser: true,
@@ -83,15 +135,19 @@ export default function Chat() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage],
+          messages: [...messages, newMessage].map(msg => ({
+            text: msg.text,
+            isUser: msg.isUser
+          })),
           temperature,
-          model,
           systemPrompt,
+          apiKey,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await response.json();
+        throw new Error('Failed to get response from AI');
       }
 
       const aiMessage = await response.json();
@@ -125,10 +181,33 @@ export default function Chat() {
     }
   };
 
+  const handleClearMessages = async () => {
+    try {
+      const response = await fetch('/api/messages/clear', {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Failed to clear messages:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen">
       {/* Main chat area */}
       <div className="flex-1 flex flex-col bg-black">
+        <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+          <h2 className="text-zinc-400 text-sm font-medium">Chat History</h2>
+          <button
+            onClick={handleClearMessages}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-2 text-xs"
+          >
+            <Trash2Icon className="w-4 h-4" />
+            Clear All Messages
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message, index) => (
             <div
@@ -168,7 +247,7 @@ export default function Chat() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 bg-zinc-900 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white"
+              className="flex-1 bg-black text-white rounded-lg px-4 py-2 ring-1 ring-white/20 focus:ring-white/30 transition-all focus:outline-none"
               disabled={isLoading}
             />
             <button
@@ -183,7 +262,7 @@ export default function Chat() {
       </div>
 
       {/* Settings panel */}
-      <div className="w-80 bg-zinc-900 p-6">
+      <div className="w-80 bg-black p-6 border-l border-zinc-800 tracking-tight">
         <div className="space-y-8">
           {/* System Prompt section */}
           <div>
@@ -211,17 +290,25 @@ export default function Chat() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-zinc-400 text-sm">Model</label>
-                <span className="text-zinc-500 text-xs">{model}</span>
+                <span className="text-zinc-500 text-xs">
+                  {model === 'gpt-3.5-turbo' && '$0.002/1K tokens'}
+                  {model === 'gpt-3.5-turbo-16k' && '$0.003/1K tokens'}
+                  {model === 'gpt-4' && '$0.03/1K tokens'}
+                  {model === 'gpt-4-32k' && '$0.06/1K tokens'}
+                  {model === 'gpt-4-turbo-preview' && '$0.01/1K tokens'}
+                  {model === 'gpt-4o-mini' && '$0.0015/1K tokens'}
+                </span>
               </div>
               <div className="relative h-[120px] overflow-hidden bg-zinc-800/50 rounded-lg">
                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-zinc-900/20 via-transparent to-zinc-900/20" />
                 <div className="relative h-full flex flex-col items-center py-2 overflow-y-auto hide-scrollbar">
                   {[
-                    "gpt-4",
-                    "gpt-4-turbo",
+                    "gpt-4o-mini",
                     "gpt-3.5-turbo",
-                    "claude-3-opus",
-                    "claude-3-sonnet",
+                    "gpt-3.5-turbo-16k",
+                    "gpt-4",
+                    "gpt-4-turbo-preview",
+                    "gpt-4-32k",
                   ].map((modelOption) => (
                     <button
                       key={modelOption}
@@ -249,7 +336,29 @@ export default function Chat() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-zinc-400 text-sm">Temperature</label>
+                <div className="flex items-center gap-2 relative">
+                  <label className="text-zinc-400 text-sm">Temperature</label>
+                  <button 
+                    ref={buttonRef}
+                    onClick={() => setShowTempInfo(!showTempInfo)}
+                    className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    <InfoIcon className="w-4 h-4" />
+                  </button>
+                  {showTempInfo && (
+                    <div 
+                      ref={tooltipRef}
+                      className="absolute mt-2 w-64 p-2 bg-zinc-800 rounded-lg shadow-lg text-xs text-zinc-300 z-10"
+                    >
+                      <p>Controls response randomness:</p>
+                      <ul className="mt-1 space-y-1">
+                        <li>• 0: Focused, consistent</li>
+                        <li>• 0.7: Balanced creativity</li>
+                        <li>• 1: Maximum randomness</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
                 <span className="text-zinc-500 text-xs">{temperature}</span>
               </div>
               <input
@@ -285,11 +394,9 @@ export default function Chat() {
                   </p>
                   <button 
                     onClick={() => handleDeleteMemory(memory.id)}
-                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 transition-opacity"
+                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 transition-opacity hover:cursor-pointer"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+                    <XIcon className="w-4 h-4" />
                   </button>
                 </div>
               ))}

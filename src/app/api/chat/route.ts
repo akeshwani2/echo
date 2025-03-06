@@ -3,10 +3,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isUniqueMemory, mergeMemories } from '@/lib/memory';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const MEMORY_INSTRUCTIONS = `
 
 When you identify any important information about the user, save it as a complete, contextual statement. Include these memories at the end of your message in the following format:
@@ -19,7 +15,12 @@ Always write memories as complete sentences starting with "User's" or "User". Ma
 
 export async function POST(req: Request) {
   try {
-    const { messages, temperature, systemPrompt } = await req.json();
+    const { messages, temperature, systemPrompt, apiKey } = await req.json();
+    
+    // Create OpenAI instance with the client's API key
+    const openai = new OpenAI({
+      apiKey: apiKey
+    });
 
     // Get existing memories and merge similar ones
     const allMemories = await prisma.memory.findMany({
@@ -95,6 +96,7 @@ export async function POST(req: Request) {
       timestamp: aiMessage.timestamp,
       memories: newMemories,
     });
+  
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
