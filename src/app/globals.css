@@ -33,3 +33,13 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Add smooth scrolling behavior globally */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Add scroll padding to ensure content isn't hidden behind fixed elements */
+.chat-container {
+  scroll-padding-bottom: 5rem;
+}

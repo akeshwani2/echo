@@ -232,7 +232,7 @@ export default function Chat() {
             Clear All Messages
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-container">
           {messages.map((message, index) => (
             <div
               key={index}
@@ -402,7 +402,7 @@ export default function Chat() {
               <h3 className="text-zinc-400 text-sm font-medium">Memories</h3>
               <span className="text-zinc-500 text-xs">{memories.length} saved</span>
             </div>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 chat-container">
               {memories.map((memory) => (
                 <div 
                   key={memory.id} 
