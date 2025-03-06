@@ -30,7 +30,7 @@ export default function Sidebar() {
           alt="Protocol Logo" 
           width={40} 
           height={40} 
-          className="text-white"
+          className="text-white hover:scale-110 transition-all duration-300"
         />
       </Link>
 
