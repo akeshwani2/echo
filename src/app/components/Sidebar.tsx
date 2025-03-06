@@ -22,7 +22,7 @@ export default function Sidebar() {
     <div className="w-16 h-screen bg-black border-r border-zinc-800 flex flex-col items-center">
       <Link
         href="/"
-        className="pt-4 pb-6"
+        className="pt-4 pb-2"
         title="Home"
       >
         <Image 
