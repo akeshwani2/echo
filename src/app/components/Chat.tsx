@@ -195,16 +195,15 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen tracking-tight">
       {/* Main chat area */}
       <div className="flex-1 flex flex-col bg-black">
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-          <h2 className="text-zinc-400 text-sm font-medium">Chat History</h2>
+          <h2 className="text-zinc-400 text-lg tracking-tight font-medium">Playground</h2>
           <button
             onClick={handleClearMessages}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-2 text-xs"
+            className="text-white hover:cursor-pointer flex items-center gap-2 text-xs border bg-red-600 border-red-600 rounded-lg px-2 py-1 hover:bg-red-600 hover:border-red-600 hover:scale-105 transition-all"
           >
-            <Trash2Icon className="w-4 h-4" />
             Clear All Messages
           </button>
         </div>
