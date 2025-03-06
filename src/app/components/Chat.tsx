@@ -17,6 +17,8 @@ interface Memory {
   timestamp: Date;
 }
 
+const DEFAULT_PROMPT = "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you.";
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -24,9 +26,13 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [model, setModel] = useState('gpt-4o-mini');
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [systemPrompt, setSystemPrompt] = useState(
-    "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you."
-  );
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [systemPrompt, setSystemPrompt] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('system_prompt') || DEFAULT_PROMPT;
+    }
+    return DEFAULT_PROMPT;
+  });
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
   const [showTempInfo, setShowTempInfo] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -194,6 +200,25 @@ export default function Chat() {
     }
   };
 
+  const handleSystemPromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newPrompt = e.target.value;
+    setSystemPrompt(newPrompt);
+    localStorage.setItem('system_prompt', newPrompt);
+  };
+
+  const handleResetPrompt = () => {
+    setSystemPrompt(DEFAULT_PROMPT);
+    localStorage.setItem('system_prompt', DEFAULT_PROMPT);
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
+
   return (
     <div className="flex h-screen tracking-tight">
       {/* Main chat area */}
@@ -238,6 +263,7 @@ export default function Chat() {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         <form onSubmit={handleSendMessage} className="p-4 border-t border-zinc-800">
           <div className="flex space-x-2">
@@ -245,7 +271,7 @@ export default function Chat() {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type a message..."
+              placeholder="Ask Echo anything..."
               className="flex-1 bg-black text-white rounded-lg px-4 py-2 ring-1 ring-white/20 focus:ring-white/30 transition-all focus:outline-none"
               disabled={isLoading}
             />
@@ -268,17 +294,15 @@ export default function Chat() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-zinc-400 text-sm">System Prompt</label>
               <button 
-                onClick={() => setSystemPrompt(
-                  "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you."
-                )}
-                className="text-zinc-500 text-xs hover:text-zinc-300"
+                onClick={handleResetPrompt}
+                className="text-zinc-500 text-xs hover:text-zinc-300 hover:cursor-pointer"
               >
                 Reset
               </button>
             </div>
             <textarea
               value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
+              onChange={handleSystemPromptChange}
               className="w-full bg-zinc-800/50 text-zinc-300 text-sm rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-1 focus:ring-zinc-700 resize-none"
               placeholder="Enter system prompt..."
             />
