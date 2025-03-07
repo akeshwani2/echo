@@ -11,10 +11,10 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex items-center justify-items-start p-6 pb-8 gap-16 sm:p-10 sm:pb-2 tracking-tighter">
+    <div className="flex items-center justify-items-start p-6 pb-8 gap-16 sm:p-6 sm:pb-2 tracking-tighter">
       <Link href="/">
       <h1 className="text-3xl flex items-center gap-2">
-        echo
+        {/* echo */}
         <Image
           src="/protocolLogo.svg"
           alt="Protocol Logo"
@@ -26,7 +26,7 @@ export default function NavBar() {
       <div className="flex items-center justify-between w-full">
         <div></div>
         <div className="flex items-center justify-between gap-4">
-        <button className={`relative hover:text-white/90 px-1
+        <button className={`relative hover:text-white/90 
             before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
             before:transition-all before:duration-300 before:ease-out
             ${pathname === '/sign-up' 
@@ -39,7 +39,7 @@ export default function NavBar() {
                 <Link href="/sign-up">sign up</Link>
               )}
           </button>
-          <button className={`relative hover:text-white/90 px-1
+          <button className={`relative hover:text-white/90 
             before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
             before:transition-all before:duration-300 before:ease-out
             ${pathname === '/playground' 
@@ -55,7 +55,7 @@ export default function NavBar() {
 
 
 
-          <button className={`relative hover:text-white/90 px-1
+          <button className={`relative hover:text-white/90
             before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
             before:transition-all before:duration-300 before:ease-out
             ${pathname === '/docs' 

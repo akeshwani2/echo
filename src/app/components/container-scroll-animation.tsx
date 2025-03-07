@@ -1,6 +1,7 @@
 "use client";
-import React, { useRef } from "react";
-import { useScroll, useTransform, motion, MotionValue } from "framer-motion";
+import React, { useRef, useMemo } from "react";
+import { useScroll, useTransform, motion, useSpring, MotionValue } from "framer-motion";
+import { throttle } from "lodash";
 
 export const ContainerScroll = ({
   titleComponent,
@@ -10,43 +11,58 @@ export const ContainerScroll = ({
   children: React.ReactNode;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-  });
   const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
-    const checkMobile = () => {
+    const checkMobile = throttle(() => {
       setIsMobile(window.innerWidth <= 768);
-    };
+    }, 100);
+    
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => {
       window.removeEventListener("resize", checkMobile);
+      checkMobile.cancel();
     };
   }, []);
 
-  const scaleDimensions = () => {
-    return isMobile ? [0.7, 0.9] : [1.05, 1];
-  };
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "center start"]
+  });
 
-  const rotate = useTransform(scrollYProgress, [0, 1], [20, 0]);
-  const scale = useTransform(scrollYProgress, [0, 1], scaleDimensions());
-  const translate = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  // Super aggressive spring physics for immediate response
+  const smoothProgress = useSpring(scrollYProgress, {
+    damping: 40,
+    stiffness: 400,
+    mass: 0.1
+  });
+
+  const scaleDimensions = useMemo(() => {
+    return isMobile ? [0.7, 0.9] : [1.05, 1];
+  }, [isMobile]);
+
+  // Complete animation in first 40% of scroll
+  const rotate = useTransform(smoothProgress, [0, 0.4], [20, 0]);
+  const scale = useTransform(smoothProgress, [0, 0.4], scaleDimensions);
+  // Subtle downward movement for parallax effect
+  const translateY = useTransform(smoothProgress, [0, 1], [0, 100]);
+  // Keep header moving up slightly
+  const headerTranslate = useTransform(smoothProgress, [0, 0.4], [0, -30]);
 
   return (
     <div
-      className="h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20"
+      className="h-[50rem] md:h-[70rem] flex items-center justify-center relative p-2 md:p-10"
       ref={containerRef}
     >
       <div
-        className="py-10 md:py-40 w-full relative max-w-6xl mx-auto"
+        className="py-8 md:py-20 w-full relative max-w-6xl mx-auto"
         style={{
           perspective: "1000px",
         }}
       >
-        <Header translate={translate} titleComponent={titleComponent} />
-        <Card rotate={rotate} translate={translate} scale={scale}>
+        <Header translate={headerTranslate} titleComponent={titleComponent} />
+        <Card rotate={rotate} translate={translateY} scale={scale}>
           {children}
         </Card>
       </div>
@@ -70,6 +86,7 @@ export const Header = ({ translate, titleComponent }: any) => {
 export const Card = ({
   rotate,
   scale,
+  translate,
   children,
 }: {
   rotate: MotionValue<number>;
