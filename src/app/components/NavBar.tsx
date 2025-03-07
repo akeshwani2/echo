@@ -11,6 +11,7 @@ export default function NavBar() {
 
   return (
     <div className="flex items-center justify-items-start p-6 pb-20 gap-16 sm:p-10 tracking-tighter">
+      <Link href="/">
       <h1 className="text-3xl flex items-center gap-2">
         echo
         <Image
@@ -20,6 +21,7 @@ export default function NavBar() {
           height={50}
         />
       </h1>
+      </Link>
       <div className="flex items-center justify-between w-full">
         <div></div>
         <div className="flex items-center justify-between gap-4">

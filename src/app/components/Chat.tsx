@@ -397,7 +397,7 @@ export default function Chat() {
                       <button 
                         ref={buttonRef}
                         onClick={() => setShowTempInfo(!showTempInfo)}
-                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors hover:cursor-pointer"
                       >
                         <InfoIcon className="w-4 h-4" />
                       </button>
