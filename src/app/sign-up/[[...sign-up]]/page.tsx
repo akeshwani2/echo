@@ -1,26 +1,43 @@
+"use client"
+
 import NavBar from "@/app/components/NavBar";
 import { SignUp } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import Image from "next/image";
+import { TextHoverEffect } from "@/app/components/text-hover-effect";
 
 export default function Page() {
   return (
-    <div className="h-screen bg-black overflow-hidden ">
+    <div className="h-screen bg-black overflow-hidden relative">
+      {/* Grid lines background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px]" />
+      
       <NavBar />
-      <main className="h-[calc(100vh-64px)]">
-        <div className="grid lg:grid-cols-2 gap-16 items-center h-full px-10">
+      <main className="h-[calc(100vh-64px)] relative">
+        {/* Background ECHO */}
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+          <div className="w-[1200px] h-[600px] transform scale-[1.5]">
+            <TextHoverEffect 
+              text="ECHO" 
+              duration={0.3}
+            />
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-12 items-center h-full px-30 relative z-10">
           {/* Left column with welcome message and branding */}
           <div className="space-y-1">
-            <h1 className="text-4xl md:text-5xl tracking-tighter">
+            <h1 className="text-4xl md:text-5xl tracking-tighter text-white">
               welcome to echo
             </h1>
             <p className="text-sm md:text-md text-white/70 leading-relaxed">
-            a sophisticated memory system designed to enhance AI learning and retention capabilities
+              a sophisticated memory system designed to enhance AI learning and retention capabilities
             </p>
           </div>
 
           {/* Right column with sign up form */}
-          <div className="w-full max-w-md mx-auto">
+          <div className="w-full max-w-md mx-auto pl-43">
             <SignUp
               appearance={{
                 baseTheme: dark,

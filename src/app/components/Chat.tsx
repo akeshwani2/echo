@@ -39,6 +39,7 @@ export default function Chat() {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [maxTokens, setMaxTokens] = useState(256);
 
   useEffect(() => {
     // Check for API key on component mount
@@ -154,6 +155,7 @@ export default function Chat() {
           systemPrompt,
           apiKey,
           chatId,
+          maxTokens,
         }),
       });
 
@@ -424,6 +426,43 @@ export default function Chat() {
                     step="0.1"
                     value={temperature}
                     onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="w-full accent-white"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 relative">
+                      <label className="text-zinc-400 text-sm">Response Length</label>
+                      <button 
+                        onClick={() => setShowTempInfo(!showTempInfo)}
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors hover:cursor-pointer"
+                      >
+                        <InfoIcon className="w-4 h-4" />
+                      </button>
+                      {showTempInfo && (
+                        <div 
+                          className="absolute mt-2 w-64 p-2 bg-zinc-800 rounded-lg shadow-lg text-xs text-zinc-300 z-10"
+                        >
+                          <p>Controls response length:</p>
+                          <ul className="mt-1 space-y-1">
+                            <li>• 128: Short responses</li>
+                            <li>• 256: Medium responses</li>
+                            <li>• 512: Long responses</li>
+                            <li>• 1024: Very detailed responses</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-zinc-500 text-xs">{maxTokens} tokens</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="128"
+                    max="1024"
+                    step="128"
+                    value={maxTokens}
+                    onChange={(e) => setMaxTokens(parseInt(e.target.value))}
                     className="w-full accent-white"
                   />
                 </div>

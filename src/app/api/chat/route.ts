@@ -16,7 +16,7 @@ Always write memories as complete sentences starting with "User's" or "User". Ma
 
 export async function POST(req: Request) {
   try {
-    const { messages, temperature, systemPrompt, apiKey } = await req.json();
+    const { messages, temperature, systemPrompt, apiKey, maxTokens } = await req.json();
     const { userId } = await auth();
     
     if (!userId) {
@@ -77,6 +77,7 @@ export async function POST(req: Request) {
         }))
       ],
       temperature: temperature || 0.7,
+      max_tokens: maxTokens || 256,
     });
 
     const content = response.choices[0].message.content;

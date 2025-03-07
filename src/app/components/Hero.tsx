@@ -7,21 +7,23 @@ import { HoverBorderGradient } from "../components/hover-border-gradient";
 function Hero() {
   return (
     <section className="min-h-[80vh] bg-black !overflow-visible relative flex flex-col items-center justify-center antialiased">
+      {/* Grid lines background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px]" />
+      
       <ContainerScroll
         titleComponent={
           <div className="flex items-center flex-col">
               <div className="flex items-center justify-center pb-4 hover:scale-105 transition-all duration-300 cursor-pointer">
                 <button className="border rounded-full hover:bg-white/80 hover:text-black transition-all duration-300 px-4 py-2 cursor-pointer hover:scale-105">
-                <Link href="/sign-up" className="cursor-pointer">
-
-                  Try echo
+                  <Link href="/sign-up" className="cursor-pointer">
+                    Try echo
                   </Link>
-
                 </button>
               </div>
 
             <h1 className="text-4xl md:text-6xl tracking-tighter pb-12 text-center max-w-5xl mx-auto relative">
-              AI that remembers your conversations, making every chat more{" "}
+              AI that remembers you, making every conversation more{" "}
               <span className="relative">
                 personalized
                 <svg
