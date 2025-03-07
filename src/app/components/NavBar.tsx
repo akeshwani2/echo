@@ -23,18 +23,38 @@ export default function NavBar() {
       <div className="flex items-center justify-between w-full">
         <div></div>
         <div className="flex items-center justify-between gap-4">
-          <button className={`hover:border-b transition-all ${pathname === '/docs' ? 'border-b' : ''}`}>
-            <Link href="/docs">docs</Link>
-          </button>
-          <button className={`hover:border-b transition-all ${pathname === '/sign-up' ? 'border-b' : ''}`}>
-            <Link href="/sign-up">sign up</Link>
-          </button>
-          <button className={`hover:border-b transition-all ${pathname === '/playground' ? 'border-b' : ''}`}>
+          <button className={`relative hover:text-white/90 px-1
+            before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
+            before:transition-all before:duration-300 before:ease-out
+            ${pathname === '/playground' 
+              ? 'before:w-full' 
+              : 'before:w-0 hover:before:w-full'
+            }`}>
             {userId ? (
               <Link href="/playground">playground</Link>
             ) : (
               <Link href="/sign-up">playground</Link>
             )}
+          </button>
+
+          <button className={`relative hover:text-white/90 px-1
+            before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
+            before:transition-all before:duration-300 before:ease-out
+            ${pathname === '/sign-up' 
+              ? 'before:w-full' 
+              : 'before:w-0 hover:before:w-full'
+            }`}>
+            <Link href="/sign-up">sign up</Link>
+          </button>
+
+          <button className={`relative hover:text-white/90 px-1
+            before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
+            before:transition-all before:duration-300 before:ease-out
+            ${pathname === '/docs' 
+              ? 'before:w-full' 
+              : 'before:w-0 hover:before:w-full'
+            }`}>
+            <Link href="/docs">docs</Link>
           </button>
         </div>
       </div>
