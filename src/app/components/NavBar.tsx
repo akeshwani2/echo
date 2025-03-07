@@ -11,7 +11,7 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex items-center justify-items-start p-6 pb-20 gap-16 sm:p-10 tracking-tighter">
+    <div className="flex items-center justify-items-start p-6 pb-8 gap-16 sm:p-10 sm:pb-2 tracking-tighter">
       <Link href="/">
       <h1 className="text-3xl flex items-center gap-2">
         echo

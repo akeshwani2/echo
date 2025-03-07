@@ -17,10 +17,10 @@ function Hero() {
                 </HoverBorderGradient>
               </Link>
             </div>
-            <h1 className="text-4xl md:text-7xl tracking-tighter pb-12 text-center max-w-5xl mx-auto relative">
-              Personal memory for AI, helping make conversations more{" "}
+            <h1 className="text-4xl md:text-6xl tracking-tighter pb-12 text-center max-w-5xl mx-auto relative">
+              AI that remembers your conversations, making every chat more{" "}
               <span className="relative">
-                effective
+                meaningful
                 <svg 
                   className="absolute -bottom-2 left-0 w-full"
                   width="100%" 
@@ -44,7 +44,7 @@ function Hero() {
         }
       >
         <div className="flex items-center justify-center w-full h-full">
-          <div className="relative w-[80vw] h-[60vh] border border-white rounded-2xl">
+          <div className="relative w-[95vw] h-[60vh] border border-white rounded-2xl">
             <Image
               src="/productImage.png"
               alt="Hero section image"

@@ -1,13 +1,17 @@
 import NavBar from "./components/NavBar";
 import Hero from "./components/Hero";
 import Features  from "./components/Features";
-
+import Footer from "./components/Footer";
 export default function Home() {
   return (
-    <div>
+    <div className="bg-black space-y-10">
       <NavBar />
+      <div className="h-[100vh] text-center flex items-center justify-center">
+      <Footer />
+      </div>
+
       <Hero />
-      <div className="text-6xl text-white text-center tracking-tight mb-10">
+      <div className="text-6xl text-white text-center tracking-tight mb-14">
         <span className="relative">
                 What echo offers
                 <svg 
