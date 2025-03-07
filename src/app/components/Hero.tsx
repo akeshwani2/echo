@@ -47,13 +47,13 @@ function Hero() {
           </div>
         }
       >
-        <div className="flex items-center justify-center w-full h-full">
-          <div className="relative w-[95vw] h-[60vh] border border-white rounded-2xl">
+        <div className="flex items-center justify-center w-full h-full py-8">
+          <div className="relative w-[95vw] h-[60vh] max-h-[600px] border border-white rounded-2xl">
             <Image
               src="/productImage.png"
               alt="Hero section image"
               fill
-              className="object-contain rounded-2xl"
+              className="object-contain rounded-2xl p-2"
               priority
             />
           </div>
