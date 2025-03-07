@@ -9,7 +9,7 @@ function Hero() {
     <section className="h-screen bg-black !overflow-visible relative flex flex-col items-center justify-center antialiased">
       <ContainerScroll
         titleComponent={
-          <div className="flex items-center flex-col mt-30">
+          <div className="flex items-center flex-col">
             <div className="flex items-center justify-center pb-4 hover:scale-105 transition-all duration-300 cursor-pointer">
               <Link href="/sign-up">
                 <HoverBorderGradient>
@@ -17,8 +17,28 @@ function Hero() {
                 </HoverBorderGradient>
               </Link>
             </div>
-            <h1 className="text-4xl md:text-5xl tracking-tighter pb-7 text-center max-w-3xl mx-auto">
-              Personal memory for AI, helping make conversations more effective.
+            <h1 className="text-4xl md:text-7xl tracking-tighter pb-12 text-center max-w-5xl mx-auto relative">
+              Personal memory for AI, helping make conversations more{" "}
+              <span className="relative">
+                effective
+                <svg 
+                  className="absolute -bottom-2 left-0 w-full"
+                  width="100%" 
+                  height="12" 
+                  viewBox="0 0 200 12"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M1 8C20 3 50 3 199 9"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    fill="none"
+                    className="animate-draw"
+                  />
+                </svg>
+              </span>
+              .
             </h1>
           </div>
         }

@@ -439,7 +439,7 @@ export default function Chat() {
                   {memories.map((memory) => (
                     <div 
                       key={memory.id} 
-                      className="group relative bg-zinc-800/50 rounded-lg p-3 transition-all hover:bg-zinc-800"
+                      className="group relative bg-zinc-800/50 rounded-lg p-3 pr-8 transition-all hover:bg-zinc-800"
                     >
                       <p className="text-zinc-300 text-sm">{memory.text}</p>
                       <p className="text-zinc-600 text-xs mt-1">
