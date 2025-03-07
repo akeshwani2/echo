@@ -15,6 +15,27 @@ interface Memory {
   timestamp: Date;
 }
 
+interface APIMemory {
+  id: string;
+  text: string;
+  timestamp: string;
+}
+
+interface APIMessage {
+  text: string;
+  isUser: boolean;
+  timestamp: string;
+}
+
+interface APIMemoryResponse {
+  memories: APIMemory[];
+}
+
+interface APIMessageResponse {
+  messages: APIMessage[];
+  chatId: string;
+}
+
 const DEFAULT_PROMPT = "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you.";
 
 export default function Chat() {
@@ -52,9 +73,8 @@ export default function Chat() {
       try {
         const response = await fetch('/api/memory');
         if (response.ok) {
-          const data = await response.json();
-          // @ts-ignore Memory type from API response
-          setMemories(data.memories.map((m: any) => ({
+          const data = (await response.json()) as APIMemoryResponse;
+          setMemories(data.memories.map(m => ({
             ...m,
             timestamp: new Date(m.timestamp)
           })));
@@ -85,9 +105,8 @@ export default function Chat() {
       try {
         const response = await fetch('/api/messages');
         if (response.ok) {
-          const data = await response.json();
-          // @ts-ignore Message type from API response
-          setMessages(data.messages.map((m: any) => ({
+          const data = (await response.json()) as APIMessageResponse;
+          setMessages(data.messages.map(m => ({
             ...m,
             timestamp: new Date(m.timestamp)
           })));
@@ -168,12 +187,10 @@ export default function Chat() {
       const aiMessage = await response.json();
       
       if (aiMessage.memories && aiMessage.memories.length > 0) {
-        // Fetch the newly created memories to get their IDs
         const memoryResponse = await fetch('/api/memory');
         if (memoryResponse.ok) {
-          const { memories: updatedMemories } = await memoryResponse.json();
-          // @ts-ignore Memory type from API response
-          setMemories(updatedMemories.map((m: any) => ({
+          const data = (await memoryResponse.json()) as APIMemoryResponse;
+          setMemories(data.memories.map(m => ({
             ...m,
             timestamp: new Date(m.timestamp)
           })));
