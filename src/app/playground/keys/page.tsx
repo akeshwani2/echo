@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { KeyIcon, CheckIcon, XIcon } from 'lucide-react'
+import { KeyIcon, CheckIcon, XIcon, AlertCircleIcon, ExternalLinkIcon, ShieldIcon, DollarSignIcon } from 'lucide-react'
 
 export default function KeysPage() {
   const [apiKey, setApiKey] = useState('')
@@ -10,10 +10,8 @@ export default function KeysPage() {
   const [isValid, setIsValid] = useState<boolean | null>(null)
 
   useEffect(() => {
-    // Check if key exists on component mount
     const key = localStorage.getItem('openai_api_key')
     if (key) {
-      // Only show last 4 characters of the key
       setSavedKey(`sk-...${key.slice(-4)}`)
     }
   }, [])
@@ -21,23 +19,22 @@ export default function KeysPage() {
   const validateAndSaveKey = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsValidating(true)
+    setIsValid(null)
 
     try {
-      // Test the API key with a simple completion request
       const response = await fetch('/api/validate-key', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey }),
       })
 
       if (response.ok) {
-        // Store the key in localStorage (or you could use cookies/session)
         localStorage.setItem('openai_api_key', apiKey)
         setSavedKey(`sk-...${apiKey.slice(-4)}`)
         setIsValid(true)
-        setApiKey('') // Clear input after saving
+        setApiKey('')
+        // Show success message
+        setTimeout(() => setIsValid(null), 3000)
       } else {
         setIsValid(false)
       }
@@ -53,18 +50,32 @@ export default function KeysPage() {
     localStorage.removeItem('openai_api_key')
     setSavedKey(null)
     setApiKey('')
+    setIsValid(null)
   }
 
   return (
     <div className="min-h-screen bg-black text-white p-8 tracking-tight">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center space-x-3 mb-8">
-          <KeyIcon className="w-6 h-6" />
-          <h1 className="text-xl font-medium">Your Keys</h1>
+      <div className="max-w-3xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center space-x-3">
+          <KeyIcon className="w-8 h-8 text-purple-500" />
+          <h1 className="text-2xl font-medium">API Configuration</h1>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-6 mb-6">
-          <h2 className="text-sm text-zinc-400 mb-4">OpenAI API Key</h2>
+        {/* Main Key Section */}
+        <div className="bg-zinc-900/50 rounded-xl p-8 border border-white/10">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-medium mb-1">OpenAI API Key</h2>
+              <p className="text-sm text-zinc-400">Required for Echo to communicate with OpenAI's API</p>
+            </div>
+            {savedKey && (
+              <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-sm">
+                <CheckIcon className="w-4 h-4" />
+                <span>Active</span>
+              </div>
+            )}
+          </div>
           
           <form onSubmit={validateAndSaveKey} className="space-y-4">
             <div className="space-y-2">
@@ -74,11 +85,16 @@ export default function KeysPage() {
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={savedKey ? '••••••••••••••••' : 'sk-...'}
-                  className="w-full bg-black text-white rounded-lg px-4 py-2 ring-1 ring-white/10 focus:ring-white/20 transition-all focus:outline-none"
+                  disabled={savedKey !== null}
+                  className={`w-full bg-black/50 text-white rounded-lg px-4 py-3 ring-1 
+                    ${savedKey ? 'ring-green-500/50' : 
+                      isValid === false ? 'ring-red-500/50' : 'ring-white/10'}
+                    focus:ring-purple-500/50 transition-all focus:outline-none
+                    disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
-                {isValid !== null && (
+                {(savedKey || isValid !== null) && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {isValid ? (
+                    {(savedKey || isValid === true) ? (
                       <CheckIcon className="w-5 h-5 text-green-500" />
                     ) : (
                       <XIcon className="w-5 h-5 text-red-500" />
@@ -87,46 +103,76 @@ export default function KeysPage() {
                 )}
               </div>
               {isValid === false && (
-                <p className="text-red-500 text-sm">Invalid API key. Please check and try again.</p>
+                <div className="flex items-center gap-2 text-red-500 text-sm">
+                  <AlertCircleIcon className="w-4 h-4" />
+                  <p>Invalid API key. Please check and try again.</p>
+                </div>
               )}
             </div>
 
             <div className="flex items-center justify-between">
               <button
                 type="submit"
-                disabled={isValidating || !apiKey}
-                className="bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isValidating || !apiKey || savedKey !== null}
+                className="bg-white text-black px-6 py-2 rounded-lg hover:bg-white/90 
+                  transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {isValidating ? 'Validating...' : 'Save Key'}
+                {isValidating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Validating...</span>
+                  </>
+                ) : (
+                  'Save Key'
+                )}
               </button>
               
               {savedKey && (
-                <div className="flex items-center gap-4">
-                  <span className="text-white/50 text-sm">
-                    Active key: {savedKey}
-                  </span>
-                  <button
-                    onClick={handleRemoveKey}
-                    className="text-white text-sm hover:cursor-pointer border bg-red-600 border-red-600 rounded-lg px-2 py-1 hover:bg-red-600 hover:border-red-600 hover:scale-105 transition-all"
-
-                  >
-                    Remove
-                  </button>
-                </div>
+                <button
+                  onClick={handleRemoveKey}
+                  className="text-red-500 hover:text-red-400 text-sm flex items-center gap-2 
+                    transition-colors"
+                >
+                  <XIcon className="w-4 h-4" />
+                  Remove Key
+                </button>
               )}
             </div>
           </form>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <h2 className="text-sm text-zinc-400 mb-4">About API Keys</h2>
-          <div className="prose prose-sm prose-invert">
-            <ul className="list-disc list-inside space-y-2 text-zinc-400">
-              <li>Your API key is stored locally and never sent to our servers</li>
-              <li>We only use your key to make requests to OpenAI's API</li>
-              <li>You can get your API key from the <a href="https://platform.openai.com/account/api-keys" target="_blank" rel="noopener noreferrer" className="text-white hover:text-zinc-300">OpenAI dashboard</a></li>
-              <li>Make sure to keep your API key secret and never share it</li>
-            </ul>
+        {/* Info Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <ShieldIcon className="w-5 h-5 text-blue-500" />
+              <h3 className="font-medium">Security</h3>
+            </div>
+            <p className="text-sm text-zinc-400">Your API key is stored locally and never sent to our servers. We only use it for OpenAI API requests.</p>
+          </div>
+
+          <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <DollarSignIcon className="w-5 h-5 text-green-500" />
+              <h3 className="font-medium">Pricing</h3>
+            </div>
+            <p className="text-sm text-zinc-400">Usage is billed directly by OpenAI. Monitor your usage in the OpenAI dashboard.</p>
+          </div>
+
+          <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <KeyIcon className="w-5 h-5 text-purple-500" />
+              <h3 className="font-medium">Get Started</h3>
+            </div>
+            <a 
+              href="https://platform.openai.com/account/api-keys" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-sm text-purple-500 hover:text-purple-400 flex items-center gap-2 transition-colors"
+            >
+              Get your API key
+              <ExternalLinkIcon className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </div>
