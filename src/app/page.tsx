@@ -5,7 +5,7 @@ import Footer from "./components/Footer";
 import EyeGrab from "./components/EyeGrab";
 export default function Home() {
   return (
-    <div className="bg-black">
+    <div className="bg-black overflow-x-hidden">
       <NavBar />
       <Hero />
       
