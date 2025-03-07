@@ -12,7 +12,7 @@ When you identify any important information about the user, save it as a complet
 <memory>User likes to [activity/preference]</memory>
 <memory>User works as a [profession]</memory>
 
-Always write memories as complete sentences starting with "User's" or "User". Make sure each memory provides full context even when read in isolation. Only include new information that isn't already in the existing memories. Avoid duplicating memories.`;
+Always write memories as complete sentences starting with "User's" or "User". Make sure each memory provides full context even when read in isolation. Only include new information that isn't already in the existing memories. Avoid duplicating memories. Also, don't make anything Bold, just write it as it is.`;
 
 export async function POST(req: Request) {
   try {

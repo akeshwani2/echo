@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 
 export default function NavBar() {
   const { userId } = useAuth();
+  const { user } = useUser();
   const pathname = usePathname();
 
   return (
@@ -25,6 +26,19 @@ export default function NavBar() {
       <div className="flex items-center justify-between w-full">
         <div></div>
         <div className="flex items-center justify-between gap-4">
+        <button className={`relative hover:text-white/90 px-1
+            before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
+            before:transition-all before:duration-300 before:ease-out
+            ${pathname === '/sign-up' 
+              ? 'before:w-full' 
+              : 'before:w-0 hover:before:w-full'
+            }`}>
+              {userId ? (
+                <Link href="/playground">welcome{" "}{user?.firstName?.toLowerCase()}</Link>
+              ) : (
+                <Link href="/sign-up">sign up</Link>
+              )}
+          </button>
           <button className={`relative hover:text-white/90 px-1
             before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
             before:transition-all before:duration-300 before:ease-out
@@ -39,15 +53,7 @@ export default function NavBar() {
             )}
           </button>
 
-          <button className={`relative hover:text-white/90 px-1
-            before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
-            before:transition-all before:duration-300 before:ease-out
-            ${pathname === '/sign-up' 
-              ? 'before:w-full' 
-              : 'before:w-0 hover:before:w-full'
-            }`}>
-            <Link href="/sign-up">sign up</Link>
-          </button>
+
 
           <button className={`relative hover:text-white/90 px-1
             before:absolute before:bottom-0 before:left-0 before:h-[1px] before:bg-white
