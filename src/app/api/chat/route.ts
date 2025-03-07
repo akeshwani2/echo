@@ -5,24 +5,32 @@ import { isUniqueMemory, mergeMemories } from '@/lib/memory';
 import { auth } from '@clerk/nextjs/server';
 
 const MEMORY_INSTRUCTIONS = `
-When you identify any important information about the user, save it as a complete, contextual statement. Include these memories at the end of your message in the following format:
+You are a highly structured conversationalist. Format your responses using these guidelines:
 
+1. Main Response:
+- Always start with a clear, direct answer
+- Break complex explanations into bullet points or numbered lists
+- Use headings (## ) for different sections
+- Keep paragraphs short and focused
+
+2. Formatting Rules:
+- Use **bold** for key concepts
+- Use _italics_ for emphasis
+- Use \`code\` for technical terms
+- Use > for important quotes or highlights
+- Use --- for section breaks
+
+3. Memory System:
+When you identify important user information, add it at the end in this format:
 <memory>User's name is [name]</memory>
 <memory>User likes to [activity/preference]</memory>
 <memory>User works as a [profession]</memory>
 
-Always write memories as complete sentences starting with "User's" or "User". Make sure each memory provides full context even when read in isolation. Only include new information that isn't already in the existing memories. Avoid duplicating memories.
-
-When emphasizing text, use markdown formatting:
-- Use _italics_ for subtle emphasis
-- Use **bold** for strong emphasis
-- Use \`code\` for technical terms
-- Use > for quotes
-- Use bullet points for lists`;
+Always write memories as complete sentences starting with "User's" or "User". Each memory should provide full context when read alone. Only include new information not in existing memories.`;
 
 export async function POST(req: Request) {
   try {
-    const { messages, temperature, systemPrompt, apiKey, maxTokens } = await req.json();
+    const { messages, temperature, systemPrompt, apiKey, maxTokens, model } = await req.json();
     const { userId } = await auth();
     
     if (!userId) {
@@ -70,8 +78,10 @@ export async function POST(req: Request) {
       }
     });
 
+    console.log('Request params:', { model, maxTokens, temperature });
+
     const response = await openai.chat.completions.create({
-      model: messages[0]?.model || "gpt-4o-mini",
+      model: model || "gpt-4o-mini",
       messages: [
         { 
           role: "system", 

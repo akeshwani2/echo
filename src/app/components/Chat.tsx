@@ -152,6 +152,7 @@ export default function Chat() {
             text: msg.text,
             isUser: msg.isUser
           })),
+          model,
           temperature,
           systemPrompt,
           apiKey,
