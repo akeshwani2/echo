@@ -20,7 +20,7 @@ export default function DocsPage() {
           <div className="grid grid-cols-1 gap-8">
             <div className="p-8 rounded-xl border border-neutral-800/50 bg-neutral-900/20">
               <h3 className="text-xl font-medium">1. Set up your API key</h3>
-              <p className="text-neutral-400 mb-6">First, you'll need to add your OpenAI API key to start using echo.</p>
+              <p className="text-neutral-400 mb-6">First, you&apos;ll need to add your OpenAI API key to start using echo.</p>
               <code className="block bg-black p-4 rounded-lg text-neutral-300">
                 Playground → Keys → Add OpenAI Key
               </code>

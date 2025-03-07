@@ -67,7 +67,7 @@ export default function KeysPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-medium mb-1">OpenAI API Key</h2>
-              <p className="text-sm text-zinc-400">Required for Echo to communicate with OpenAI's API</p>
+              <p className="text-sm text-zinc-400">Required for Echo to communicate with OpenAI&apos;s API</p>
             </div>
             {savedKey && (
               <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-sm">

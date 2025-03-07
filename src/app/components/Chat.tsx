@@ -53,6 +53,7 @@ export default function Chat() {
         const response = await fetch('/api/memory');
         if (response.ok) {
           const data = await response.json();
+          // @ts-ignore Memory type from API response
           setMemories(data.memories.map((m: any) => ({
             ...m,
             timestamp: new Date(m.timestamp)
@@ -85,6 +86,7 @@ export default function Chat() {
         const response = await fetch('/api/messages');
         if (response.ok) {
           const data = await response.json();
+          // @ts-ignore Message type from API response
           setMessages(data.messages.map((m: any) => ({
             ...m,
             timestamp: new Date(m.timestamp)
@@ -170,6 +172,7 @@ export default function Chat() {
         const memoryResponse = await fetch('/api/memory');
         if (memoryResponse.ok) {
           const { memories: updatedMemories } = await memoryResponse.json();
+          // @ts-ignore Memory type from API response
           setMemories(updatedMemories.map((m: any) => ({
             ...m,
             timestamp: new Date(m.timestamp)
