@@ -1,6 +1,7 @@
 'use client'
 import { ArrowUpIcon, XIcon, InfoIcon } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const MEMORY_INSTRUCTIONS = "\nPlease remember important details about me and my preferences.";
 const memoryContext = "";
@@ -280,7 +281,13 @@ export default function Chat() {
                         : 'bg-zinc-900 text-gray-100'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{message.text}</p>
+                    <ReactMarkdown
+                      components={{
+                        p: ({children}) => <p className="whitespace-pre-wrap prose prose-invert prose-sm max-w-none">{children}</p>
+                      }}
+                    >
+                      {message.text}
+                    </ReactMarkdown>
                     <p className="text-xs text-gray-500 mt-1">
                       {message.timestamp.toLocaleTimeString()}
                     </p>

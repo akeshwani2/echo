@@ -5,14 +5,20 @@ import { isUniqueMemory, mergeMemories } from '@/lib/memory';
 import { auth } from '@clerk/nextjs/server';
 
 const MEMORY_INSTRUCTIONS = `
-
 When you identify any important information about the user, save it as a complete, contextual statement. Include these memories at the end of your message in the following format:
 
 <memory>User's name is [name]</memory>
 <memory>User likes to [activity/preference]</memory>
 <memory>User works as a [profession]</memory>
 
-Always write memories as complete sentences starting with "User's" or "User". Make sure each memory provides full context even when read in isolation. Only include new information that isn't already in the existing memories. Avoid duplicating memories. Also, don't make anything Bold, just write it as it is.`;
+Always write memories as complete sentences starting with "User's" or "User". Make sure each memory provides full context even when read in isolation. Only include new information that isn't already in the existing memories. Avoid duplicating memories.
+
+When emphasizing text, use markdown formatting:
+- Use _italics_ for subtle emphasis
+- Use **bold** for strong emphasis
+- Use \`code\` for technical terms
+- Use > for quotes
+- Use bullet points for lists`;
 
 export async function POST(req: Request) {
   try {
