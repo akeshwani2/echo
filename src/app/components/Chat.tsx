@@ -413,7 +413,7 @@ export default function Chat() {
                     {memory.timestamp.toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
-                    })}
+                    })} • {memory.timestamp.toLocaleDateString()}
                   </p>
                   <button 
                     onClick={() => handleDeleteMemory(memory.id)}
