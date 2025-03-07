@@ -2,6 +2,7 @@ import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isUniqueMemory, mergeMemories } from '@/lib/memory';
+import { auth } from '@clerk/nextjs/server';
 
 const MEMORY_INSTRUCTIONS = `
 
@@ -16,6 +17,23 @@ Always write memories as complete sentences starting with "User's" or "User". Ma
 export async function POST(req: Request) {
   try {
     const { messages, temperature, systemPrompt, apiKey } = await req.json();
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get or create chat for this user
+    let chat = await prisma.chat.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!chat) {
+      chat = await prisma.chat.create({
+        data: { userId }
+      });
+    }
     
     // Create OpenAI instance with the client's API key
     const openai = new OpenAI({
@@ -24,6 +42,7 @@ export async function POST(req: Request) {
 
     // Get existing memories and merge similar ones
     const allMemories = await prisma.memory.findMany({
+      where: { userId },
       orderBy: { timestamp: 'desc' }
     });
     
@@ -41,11 +60,12 @@ export async function POST(req: Request) {
         text: userMessage.text,
         isUser: true,
         timestamp: new Date(),
+        chatId: chat.id
       }
     });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         { 
           role: "system", 
@@ -75,6 +95,7 @@ export async function POST(req: Request) {
           data: uniqueNewMemories.map(text => ({
             text,
             timestamp: new Date(),
+            userId
           }))
         });
       }
@@ -87,6 +108,7 @@ export async function POST(req: Request) {
         text: cleanedText,
         isUser: false,
         timestamp: new Date(),
+        chatId: chat.id
       }
     });
 

@@ -8,7 +8,8 @@ import {
   TerminalSquareIcon,
 } from 'lucide-react';
 import ProtocolLogo from '../../../public/protocolLogo.svg';
-
+import { UserButton } from '@clerk/nextjs';
+import { dark } from '@clerk/themes';
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -51,6 +52,19 @@ export default function Sidebar() {
             />
           </Link>
         ))}
+      </div>
+      <div className="mt-auto mb-2.5">
+      <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                baseTheme: dark,
+                elements: {
+                  userButtonAvatarBox: "!rounded-lg !w-10 !h-10",
+                  userButtonTrigger: "p-0.5 rounded-lg",
+                  userButtonPopoverCard: "min-w-[240px] rounded-lg",
+                },
+              }}
+            />
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [model, setModel] = useState('gpt-4o-mini');
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [systemPrompt, setSystemPrompt] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -88,6 +89,7 @@ export default function Chat() {
             ...m,
             timestamp: new Date(m.timestamp)
           })));
+          setChatId(data.chatId);
         }
       } catch (error) {
         console.error('Failed to load messages:', error);
@@ -148,12 +150,13 @@ export default function Chat() {
           temperature,
           systemPrompt,
           apiKey,
+          chatId,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error('Failed to get response from AI');
+        throw new Error(errorData.error || 'Failed to get response from AI');
       }
 
       const aiMessage = await response.json();

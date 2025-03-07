@@ -12,7 +12,7 @@ export default function NavBar() {
 <div></div>
         <div className="flex items-center justify-between gap-4">
         <button className="hover:border-b-1">
-            <Link href="/pricing">docs</Link>
+            <Link href="/docs">docs</Link>
           </button>
           <button className="hover:border-b-1">
             <Link href="/sign-up">sign up</Link>
