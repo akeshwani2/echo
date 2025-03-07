@@ -1,4 +1,3 @@
-import ReactMarkdown from 'react-markdown';
 
 interface ChatMessageProps {
   content: string;

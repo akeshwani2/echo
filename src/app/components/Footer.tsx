@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { CircleUser, Github, Linkedin } from "lucide-react";
 
 function Footer() {

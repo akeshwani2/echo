@@ -3,6 +3,11 @@ import React, { useRef, useMemo } from "react";
 import { useScroll, useTransform, motion, useSpring, MotionValue } from "framer-motion";
 import { throttle } from "lodash";
 
+interface HeaderProps {
+  translate: MotionValue<number>;
+  titleComponent: React.ReactNode;
+}
+
 export const ContainerScroll = ({
   titleComponent,
   children,
@@ -70,7 +75,7 @@ export const ContainerScroll = ({
   );
 };
 
-export const Header = ({ translate, titleComponent }: any) => {
+export const Header = ({ translate, titleComponent }: HeaderProps) => {
   return (
     <motion.div
       style={{

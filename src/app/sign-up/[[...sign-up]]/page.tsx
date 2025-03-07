@@ -3,7 +3,6 @@
 import NavBar from "@/app/components/NavBar";
 import { SignUp } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
-import Image from "next/image";
 import { TextHoverEffect } from "@/app/components/text-hover-effect";
 
 export default function Page() {

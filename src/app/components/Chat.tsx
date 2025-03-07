@@ -3,9 +3,6 @@ import { ArrowUpIcon, XIcon, InfoIcon } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-const MEMORY_INSTRUCTIONS = "\nPlease remember important details about me and my preferences.";
-const memoryContext = "";
-
 interface Message {
   text: string;
   isUser: boolean;
@@ -121,7 +118,7 @@ export default function Chat() {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 

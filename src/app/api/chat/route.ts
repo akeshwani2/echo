@@ -15,10 +15,8 @@ You are a highly structured conversationalist. Format your responses using these
 
 2. Formatting Rules:
 - Use **bold** for key concepts
-- Use _italics_ for emphasis
 - Use \`code\` for technical terms
 - Use > for important quotes or highlights
-- Use --- for section breaks
 
 3. Memory System:
 When you identify important user information, add it at the end in this format:
@@ -27,6 +25,11 @@ When you identify important user information, add it at the end in this format:
 <memory>User works as a [profession]</memory>
 
 Always write memories as complete sentences starting with "User's" or "User". Each memory should provide full context when read alone. Only include new information not in existing memories.`;
+
+interface ChatMessage {
+  isUser: boolean;
+  text: string;
+}
 
 export async function POST(req: Request) {
   try {
@@ -87,7 +90,7 @@ export async function POST(req: Request) {
           role: "system", 
           content: systemPrompt + MEMORY_INSTRUCTIONS + memoryContext
         },
-        ...messages.map((msg: any) => ({
+        ...messages.map((msg: ChatMessage) => ({
           role: msg.isUser ? "user" : "assistant",
           content: msg.text
         }))

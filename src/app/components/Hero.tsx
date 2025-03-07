@@ -2,7 +2,6 @@ import React from "react";
 import { ContainerScroll } from "./container-scroll-animation";
 import Image from "next/image";
 import Link from "next/link";
-import { HoverBorderGradient } from "../components/hover-border-gradient";
 
 function Hero() {
   return (

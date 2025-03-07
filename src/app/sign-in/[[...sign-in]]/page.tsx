@@ -1,4 +1,4 @@
-import { SignIn, SignUp } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 
 export default function Page() {
