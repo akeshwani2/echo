@@ -50,10 +50,10 @@ function Hero() {
         <div className="flex items-center justify-center w-full h-full py-8">
           <div className="relative w-[95vw] h-[60vh] max-h-[600px] border border-white rounded-2xl">
             <Image
-              src="/productImage.png"
+              src="/productImage2.png"
               alt="Hero section image"
               fill
-              className="object-contain rounded-2xl p-2"
+              className="object-contain rounded-2xl p-1"
               priority
             />
           </div>
