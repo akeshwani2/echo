@@ -36,7 +36,7 @@ interface APIMessageResponse {
   chatId: string;
 }
 
-const DEFAULT_PROMPT = "You are Echo, a super friendly AI assistant, excited to meet a new person. Your goal is to save memories of things I tell you.";
+const DEFAULT_PROMPT = "You are Echo, an enthusiastic and friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. Listen carefully and store meaningful information they share about themselves, their preferences, and experiences.";
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
