@@ -43,14 +43,27 @@ interface FormattedEmail {
   content: string;
 }
 
-const DEFAULT_PROMPT = `You are Echo, an enthusiastic and friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails, such as "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information they share about themselves, their preferences, and experiences.`;
+const DEFAULT_PROMPT = `You are Echo, a friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails.
 
+Conversation Guidelines:
+- Only use greetings for the first message in a conversation
+- Focus on continuing the natural flow of conversation
+- Use the user's name occasionally but not in every message
+- Maintain a friendly tone without being overly formal
+- Remember and reference previous context naturally
+- Don't save any memories about the emails. Any info you get from the emails should be used to answer the user's question, that's it, don't save any memories about the emails.
+You can handle email queries like "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information about preferences and experiences.`;
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState('gpt-4o-mini');
+  const [model, setModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selected_model') || 'gemini-1.5-flash';
+    }
+    return 'gemini-1.5-flash';
+  });
   const [memories, setMemories] = useState<Memory[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -214,7 +227,7 @@ export default function Chat() {
           
           if (gmailResponse.ok) {
             const emailData = await gmailResponse.json();
-            const formattedEmails = emailData.emails.map((email: any) => {
+            emailContext = emailData.emails.map((email: any) => {
               const decodeHtml = (html: string) => {
                 const txt = document.createElement('textarea');
                 txt.innerHTML = html;
@@ -225,15 +238,10 @@ export default function Chat() {
                 from: email.from?.split('<')[0]?.trim() || email.from,
                 subject: decodeHtml(email.subject || ''),
                 date: new Date(email.date).toLocaleString(),
-                content: decodeHtml(email.snippet || '')
+                content: decodeHtml(email.snippet || ''),
+                raw: email // Keep the raw email data in case we need it
               };
             });
-
-            emailContext = `Here are the relevant emails I found:\n${
-              formattedEmails.map((email: FormattedEmail, index: number) => 
-                `\nEmail ${index + 1}:\n• From: ${email.from}\n• Subject: ${email.subject}\n• Sent: ${email.date}\n• Preview: ${email.content}`
-              ).join('\n')
-            }`;
           }
         }
       }
@@ -247,16 +255,12 @@ export default function Chat() {
         body: JSON.stringify({
           messages: [
             ...messages,
-            newMessage,
-            ...(emailContext ? [{
-              text: emailContext,
-              isUser: false,
-              timestamp: new Date()
-            }] : [])
+            newMessage
           ].map(msg => ({
             text: msg.text,
             isUser: msg.isUser
           })),
+          emailData: emailContext, // Pass emails as separate data
           model,
           temperature,
           systemPrompt,
@@ -355,6 +359,11 @@ export default function Chat() {
       </svg>
     </div>
   );
+
+  const handleModelChange = (modelOption: string) => {
+    setModel(modelOption);
+    localStorage.setItem('selected_model', modelOption);
+  };
 
   return (
     <div className="flex h-screen tracking-tight">
@@ -482,6 +491,7 @@ export default function Chat() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-zinc-400 text-sm">Model</label>
                     <span className="text-zinc-500 text-xs">
+                      {model === 'gemini-1.5-flash' && 'Free'}
                       {model === 'gpt-3.5-turbo' && '$0.002/1K tokens'}
                       {model === 'gpt-3.5-turbo-16k' && '$0.003/1K tokens'}
                       {model === 'gpt-4' && '$0.03/1K tokens'}
@@ -494,6 +504,7 @@ export default function Chat() {
                     <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-zinc-900/20 via-transparent to-zinc-900/20" />
                     <div className="relative h-full flex flex-col items-center py-2 overflow-y-auto hide-scrollbar">
                       {[
+                        "gemini-1.5-flash",
                         "gpt-4o-mini",
                         "gpt-3.5-turbo",
                         "gpt-3.5-turbo-16k",
@@ -503,7 +514,7 @@ export default function Chat() {
                       ].map((modelOption) => (
                         <button
                           key={modelOption}
-                          onClick={() => setModel(modelOption)}
+                          onClick={() => handleModelChange(modelOption)}
                           onMouseEnter={() => setHoveredModel(modelOption)}
                           onMouseLeave={() => setHoveredModel(null)}
                           className={`
