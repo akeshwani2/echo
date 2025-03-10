@@ -81,6 +81,8 @@ export default function Chat() {
   const [maxTokens, setMaxTokens] = useState(256);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [gmailTokens, setGmailTokens] = useState<any>(null);
+  const [geminiWarning, setGeminiWarning] = useState(false);
+  const [remainingRequests, setRemainingRequests] = useState<number>(60);
 
   useEffect(() => {
     // Check for API key on component mount
@@ -275,9 +277,13 @@ export default function Chat() {
         throw new Error(errorData.error || 'Failed to get response from AI');
       }
 
-      const aiMessage = await response.json();
+      const data = await response.json();
       
-      if (aiMessage.memories && aiMessage.memories.length > 0) {
+      if (data.remainingRequests !== undefined) {
+        setRemainingRequests(data.remainingRequests);
+      }
+
+      if (data.memories && data.memories.length > 0) {
         const memoryResponse = await fetch('/api/memory');
         if (memoryResponse.ok) {
           const data = (await memoryResponse.json()) as APIMemoryResponse;
@@ -289,9 +295,9 @@ export default function Chat() {
       }
 
       setMessages(prev => [...prev, {
-        text: aiMessage.text,
+        text: data.text,
         isUser: false,
-        timestamp: new Date(aiMessage.timestamp)
+        timestamp: new Date(data.timestamp)
       }]);
     } catch (error) {
       console.error('Chat error:', error);
@@ -534,6 +540,11 @@ export default function Chat() {
                       ))}
                     </div>
                   </div>
+                  {model === 'gemini-1.5-flash' && (
+                    <div className="text-xs text-zinc-500 mt-2 text-center">
+                      {remainingRequests} requests remaining this minute
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -648,6 +659,13 @@ export default function Chat() {
               </div>
             </div>
           </div>
+
+          {/* Warning banner */}
+          {geminiWarning && (
+            <div className="bg-yellow-600/20 text-yellow-200 px-4 py-2 text-sm">
+              Gemini rate limit reached. Switched to GPT backup model.
+            </div>
+          )}
         </>
       )}
     </div>
