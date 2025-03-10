@@ -36,6 +36,13 @@ interface APIMessageResponse {
   chatId: string;
 }
 
+interface FormattedEmail {
+  from: string;
+  subject: string;
+  date: string;
+  content: string;
+}
+
 const DEFAULT_PROMPT = `You are Echo, an enthusiastic and friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails, such as "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information they share about themselves, their preferences, and experiences.`;
 
 export default function Chat() {
@@ -184,17 +191,16 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // Check if this is an email-related query
+      let emailContext = null;
+      
+      // First, check and fetch emails if needed
       if (inputMessage.toLowerCase().includes('email') || 
           inputMessage.toLowerCase().includes('flight') ||
           inputMessage.toLowerCase().includes('order') ||
           inputMessage.toLowerCase().includes('appointment')) {
         
         const tokens = localStorage.getItem('gmail_tokens');
-        console.log('Gmail tokens:', tokens); // Debug log
-        
         if (tokens) {
-          // Search Gmail
           const gmailResponse = await fetch('/api/gmail/search', {
             method: 'POST',
             headers: {
@@ -205,39 +211,49 @@ export default function Chat() {
               tokens: JSON.parse(tokens)
             }),
           });
-
-          console.log('Gmail response status:', gmailResponse.status); // Debug log
           
           if (gmailResponse.ok) {
             const emailData = await gmailResponse.json();
-            console.log('Email data:', emailData); // Debug log
-            
-            const emailContext = `Here are the relevant emails I found:
-            ${emailData.emails.map((email: any) => `
-              Email from: ${email.from}
-              Subject: ${email.subject}
-              Date: ${email.date}
-              Content: ${email.snippet}
-              ---
-            `).join('\n')}
-            Please use this information to answer the user's question.`;
-            
-            setSystemPrompt(prevPrompt => prevPrompt + '\n\nContext from emails: ' + emailContext);
-          } else {
-            console.error('Gmail response error:', await gmailResponse.json()); // Debug log
+            const formattedEmails = emailData.emails.map((email: any) => {
+              const decodeHtml = (html: string) => {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = html;
+                return txt.value;
+              };
+
+              return {
+                from: email.from?.split('<')[0]?.trim() || email.from,
+                subject: decodeHtml(email.subject || ''),
+                date: new Date(email.date).toLocaleString(),
+                content: decodeHtml(email.snippet || '')
+              };
+            });
+
+            emailContext = `Here are the relevant emails I found:\n${
+              formattedEmails.map((email: FormattedEmail, index: number) => 
+                `\nEmail ${index + 1}:\n• From: ${email.from}\n• Subject: ${email.subject}\n• Sent: ${email.date}\n• Preview: ${email.content}`
+              ).join('\n')
+            }`;
           }
-        } else {
-          console.log('No Gmail tokens found'); // Debug log
         }
       }
 
+      // Then make the chat API call with both user message and email context
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, newMessage].map(msg => ({
+          messages: [
+            ...messages,
+            newMessage,
+            ...(emailContext ? [{
+              text: emailContext,
+              isUser: false,
+              timestamp: new Date()
+            }] : [])
+          ].map(msg => ({
             text: msg.text,
             isUser: msg.isUser
           })),
