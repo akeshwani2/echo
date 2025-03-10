@@ -36,7 +36,7 @@ interface APIMessageResponse {
   chatId: string;
 }
 
-const DEFAULT_PROMPT = "You are Echo, an enthusiastic and friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. Listen carefully and store meaningful information they share about themselves, their preferences, and experiences.";
+const DEFAULT_PROMPT = `You are Echo, an enthusiastic and friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails, such as "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information they share about themselves, their preferences, and experiences.`;
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +59,8 @@ export default function Chat() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [maxTokens, setMaxTokens] = useState(256);
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
+  const [gmailTokens, setGmailTokens] = useState<any>(null);
 
   useEffect(() => {
     // Check for API key on component mount
@@ -121,6 +123,28 @@ export default function Chat() {
     loadMessages();
   }, []);
 
+  useEffect(() => {
+    // Check if Gmail tokens exist in localStorage
+    const tokens = localStorage.getItem('gmail_tokens');
+    if (tokens) {
+      setGmailTokens(JSON.parse(tokens));
+      setIsGmailConnected(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Check for tokens in URL after OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokens = urlParams.get('tokens');
+    if (tokens) {
+      localStorage.setItem('gmail_tokens', tokens);
+      setGmailTokens(JSON.parse(tokens));
+      setIsGmailConnected(true);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const handleDeleteMemory = async (id: string) => {
     try {
       const response = await fetch('/api/memory/delete', {
@@ -160,6 +184,53 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
+      // Check if this is an email-related query
+      if (inputMessage.toLowerCase().includes('email') || 
+          inputMessage.toLowerCase().includes('flight') ||
+          inputMessage.toLowerCase().includes('order') ||
+          inputMessage.toLowerCase().includes('appointment')) {
+        
+        const tokens = localStorage.getItem('gmail_tokens');
+        console.log('Gmail tokens:', tokens); // Debug log
+        
+        if (tokens) {
+          // Search Gmail
+          const gmailResponse = await fetch('/api/gmail/search', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              query: inputMessage,
+              tokens: JSON.parse(tokens)
+            }),
+          });
+
+          console.log('Gmail response status:', gmailResponse.status); // Debug log
+          
+          if (gmailResponse.ok) {
+            const emailData = await gmailResponse.json();
+            console.log('Email data:', emailData); // Debug log
+            
+            const emailContext = `Here are the relevant emails I found:
+            ${emailData.emails.map((email: any) => `
+              Email from: ${email.from}
+              Subject: ${email.subject}
+              Date: ${email.date}
+              Content: ${email.snippet}
+              ---
+            `).join('\n')}
+            Please use this information to answer the user's question.`;
+            
+            setSystemPrompt(prevPrompt => prevPrompt + '\n\nContext from emails: ' + emailContext);
+          } else {
+            console.error('Gmail response error:', await gmailResponse.json()); // Debug log
+          }
+        } else {
+          console.log('No Gmail tokens found'); // Debug log
+        }
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -366,6 +437,27 @@ export default function Chat() {
                   className="w-full bg-zinc-800/50 text-zinc-300 text-sm rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-1 focus:ring-zinc-700 resize-none"
                   placeholder="Enter system prompt..."
                 />
+              </div>
+
+              {/* Gmail Integration */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-zinc-400 text-sm">Gmail Integration</label>
+                  <button 
+                    onClick={async () => {
+                      const response = await fetch('/api/gmail/auth');
+                      const { url } = await response.json();
+                      window.location.href = url;
+                    }}
+                    className={`text-xs px-2 py-1 rounded-lg transition-all ${
+                      isGmailConnected 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                  >
+                    {isGmailConnected ? 'Gmail Connected' : 'Connect Gmail'}
+                  </button>
+                </div>
               </div>
 
               {/* Model & Temperature controls */}
