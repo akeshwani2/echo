@@ -121,6 +121,10 @@ Core Instructions:
    - Present information clearly and concisely
    - Cite which emails you're referencing
    - Connect information across multiple emails when relevant
+   - ALWAYS use empty markdown links to reference emails: [](email_id)
+   - NEVER show raw email IDs in the text
+   - Format references like this: "Document Title" [](email_id)
+   - Example: "Meeting Notes" [](123456)
 3. For follow-up questions:
    - Reference previous answers
    - Use context from earlier in the conversation
@@ -131,9 +135,9 @@ Core Instructions:
 
 Example of good contextual responses:
 User: "When's my next meeting?"
-Assistant: "Your next meeting is with Sarah on Tuesday at 2 PM"
+Assistant: "Your next meeting "Team Sync" [](123456) is with Sarah on Tuesday at 2 PM"
 User: "What's the link for it?"
-Assistant: "For your Tuesday meeting with Sarah, here's the Zoom link: [...]"
+Assistant: "The Zoom link for your meeting [](123456) can be found in the calendar invite."
 
 ${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
           }],

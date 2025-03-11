@@ -1,11 +1,16 @@
 export interface Email {
   id: string;
   from: string;
+  to: string;
   subject: string;
   date: string;
   snippet: string;
   body: string;
   html?: string;  // Optional HTML content
+  type: 'meeting' | 'order' | 'travel' | 'document' | 'general';
+  importance: 'high' | 'medium' | 'low';
+  hasAttachments: boolean;
+  labels: string[];
 }
 
 export interface EmailSearchResult {

@@ -7,6 +7,7 @@ import {
   Plane,
   ArrowLeftRight,
   User,
+  ExternalLink,
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
@@ -14,6 +15,7 @@ import EmailSearchResults from "@/components/EmailSearchResults";
 import { Email } from "@/types/email";
 import EmailPreview from "@/components/EmailPreview";
 import { AnimatePresence } from "framer-motion";
+import { Components } from 'react-markdown';
 
 interface Message {
   text: string;
@@ -68,6 +70,11 @@ interface SuggestedAction {
   prompt: string;
 }
 
+const getGmailUrl = (emailId: string): string => {
+  // Remove any special characters and get just the message ID
+  const cleanId = emailId.replace(/[<>]/g, '');
+  return `https://mail.google.com/mail/u/0/#inbox/${cleanId}`;
+};
 const SUGGESTED_ACTIONS: SuggestedAction[] = [
   {
     icon: <SearchIcon />,
@@ -98,31 +105,43 @@ const SUGGESTED_ACTIONS: SuggestedAction[] = [
 const DEFAULT_PROMPT = `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights and assistance.
 
 Core Functionality:
-1. ALWAYS check email context first for any query, even if it doesn't explicitly mention emails
-2. When email context is relevant:
-   - Analyze email data thoroughly
-   - Present information clearly and concisely
-   - Extract key details (dates, times, locations, numbers)
-   - Provide context about which emails were used
-3. When email context isn't relevant or sufficient:
-   - Clearly state that you're using general knowledge
-   - Provide helpful information from your general knowledge
-   - Explain why email context wasn't applicable
+1. ALWAYS start responses with a clear overview:
+   📊 **Summary Dashboard**
+   - Total emails found: [number]
+   - High priority: [number]
+   - Needs action: [number]
+   - Categories found: [list]
 
-Email Processing Guidelines:
-- For appointments/meetings: Extract dates, times, locations, participants
-- For orders/purchases: Show order details, tracking, delivery dates
-- For travel: Highlight flight times, confirmation numbers, itineraries
-- For general correspondence: Summarize key points and action items
+2. Format ALL email references exactly like this:
+   Title/Subject [](email_id)
 
-Communication Style:
-- Be concise and professional
-- Focus on email-centric assistance
-- Maintain conversation flow naturally
-- Use the user's name occasionally
-- Don't save memories about email content between conversations
+   Examples:
+   • "Project Update" [](123456)
+   • Meeting Invitation [](789012)
 
-Remember: Your primary context is the user's emails, but you can provide general assistance when email context isn't relevant or available.`;
+3. Group by category:
+   📄 **Documents**
+   • Document name [](email_id)
+     └─ Status: ⏳ Pending
+
+   📅 **Meetings**
+   • Meeting title [](email_id)
+     └─ ⏰ Time: 2 PM
+
+4. Action items:
+   ⚡ **Action Required**
+   • [⚠️ High] Sign document [](email_id)
+   • [📌 Medium] Review file [](email_id)
+
+Style Guide:
+- Keep responses concise
+- Use headers with emojis
+- Use status indicators: ✅ ⏳ ❌
+- Use priority levels: [⚠️ High] [📌 Medium] [Low]
+- Add dividers (---) between sections
+
+IMPORTANT: Always put email IDs in empty markdown links: [](id_here)
+Never show raw email IDs in the text.`;
 
 // Add this function before the Chat component
 const shouldSearchEmails = (query: string): boolean => {
@@ -177,57 +196,6 @@ const shouldSearchEmails = (query: string): boolean => {
 };
 
 // Add this CSS at the top of your file or in a separate CSS module
-const orbStyles = `
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-  100% { transform: translateY(0px); }
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.1); }
-  50% { box-shadow: 0 0 40px rgba(255, 255, 255, 0.4), 0 0 80px rgba(255, 255, 255, 0.2); }
-  100% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.1); }
-}
-
-.floating-orb {
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(circle at 30% 30%, 
-    rgba(255, 255, 255, 1), 
-    rgba(255, 255, 255, 0.8) 40%,
-    rgba(255, 255, 255, 0.4) 80%
-  );
-  border-radius: 50%;
-  position: relative;
-  animation: float 6s ease-in-out infinite, pulse 4s ease-in-out infinite;
-}
-
-.floating-orb::before {
-  content: '';
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  right: -10px;
-  bottom: -10px;
-  border-radius: 50%;
-  background: radial-gradient(circle at center, 
-    rgba(255, 255, 255, 0.2), 
-    transparent 70%
-  );
-  filter: blur(10px);
-}
-
-.suggestions-container {
-  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.5));
-  padding: 2rem;
-  border-radius: 1rem;
-  backdrop-filter: blur(10px);
-}
-`;
-
-// Add this component before the Chat component
-const FloatingOrb = () => <div className="floating-orb" />;
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -697,7 +665,7 @@ export default function Chat() {
                     }`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 ${
+                      className={`max-w-[70%] rounded-lg p-3 space-y-4 ${
                         message.isUser
                           ? "bg-zinc-800 text-white"
                           : "bg-zinc-900 text-gray-100"
@@ -710,13 +678,68 @@ export default function Chat() {
                               {children}
                             </p>
                           ),
+                          h1: ({ children }) => (
+                            <h1 className="text-xl font-bold mb-2 mt-4">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-lg font-semibold mb-2 mt-3">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-base font-medium mb-1 mt-2">{children}</h3>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-none space-y-1 my-2">{children}</ul>
+                          ),
+                          li: ({ children }) => (
+                            <li className="flex items-start space-x-2">
+                              <span className="mt-1">•</span>
+                              <span>{children}</span>
+                            </li>
+                          ),
+                          hr: () => <hr className="my-3 border-zinc-700" />,
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-white">{children}</strong>
+                          ),
+                          a: ({ href, children }) => {
+                            if (!href) return null;
+                            // Render the link inline with any text
+                            return (
+                              <span className="inline-flex items-center gap-1">
+                                {children}
+                                <a
+                                  href={getGmailUrl(href)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center hover:bg-zinc-800 rounded transition-colors"
+                                  title="Open in Gmail"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+                                </a>
+                              </span>
+                            );
+                          },
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-4">
+                              <table className="min-w-full divide-y divide-zinc-700">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-3 py-2 text-left text-sm font-medium text-zinc-300 bg-zinc-800">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-3 py-2 text-sm text-zinc-400 border-t border-zinc-700">
+                              {children}
+                            </td>
+                          ),
                         }}
                       >
                         {message.text}
                       </ReactMarkdown>
-                      {/* <p className="text-xs text-gray-500 mt-1">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p> */}
                     </div>
                   </div>
                 ))

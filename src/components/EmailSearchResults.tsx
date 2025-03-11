@@ -39,10 +39,10 @@ export default function EmailSearchResults({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }} 
-          className="rounded-lg overflow-hidden border border-white/50"
+          className=" overflow-hidden border border-white/50 rounded-2xl"
         >
           {/* Header */}
-          <div className="p-3 flex items-center gap-2 text-sm border-b border-white/50">
+          <div className="p-3 flex items-center gap-2 text-sm">
             <Search className="w-4 h-4" />
             <span className="text-white/90">Found {emails.length} relevant emails</span>
           </div>

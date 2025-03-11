@@ -43,6 +43,7 @@ export async function POST(req: Request) {
         });
         
         const headers = email.data.payload?.headers || [];
+        const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
         
         // Add this: Get the email body
         const body = email.data.payload?.parts?.[0]?.body?.data || 
@@ -52,17 +53,78 @@ export async function POST(req: Request) {
           Buffer.from(body, 'base64').toString('utf-8') : 
           '';
 
+        // Enhanced metadata processing
+        const subject = getHeader('Subject');
+        const type = determineEmailType(subject, decodedBody);
+        const importance = determineImportance(email.data.labelIds || [], subject);
+        const hasAttachments = email.data.payload?.parts?.some(part => part.filename && part.filename.length > 0) || false;
+        
         return {
           id: email.data.id,
           snippet: email.data.snippet,
+          type,
+          importance,
+          hasAttachments,
           headers,
-          date: headers.find(h => h.name === 'Date')?.value,
-          subject: headers.find(h => h.name === 'Subject')?.value,
-          from: headers.find(h => h.name === 'From')?.value,
-          body: decodedBody // Add the full body
+          date: getHeader('Date'),
+          subject: subject,
+          from: getHeader('From'),
+          to: getHeader('To'),
+          body: decodedBody,
+          labels: email.data.labelIds || []
         };
       })
     );
+
+    // Helper function to determine email type
+    function determineEmailType(subject: string, body: string): string {
+      const lowerSubject = subject.toLowerCase();
+      const lowerBody = body.toLowerCase();
+      
+      if (lowerSubject.includes('meeting') || lowerSubject.includes('invite') || 
+          lowerBody.includes('zoom.us') || lowerBody.includes('meet.google.com')) {
+        return 'meeting';
+      }
+      
+      if (lowerSubject.includes('order') || lowerSubject.includes('shipping') || 
+          lowerSubject.includes('tracking') || lowerSubject.includes('delivered')) {
+        return 'order';
+      }
+      
+      if (lowerSubject.includes('flight') || lowerSubject.includes('itinerary') || 
+          lowerSubject.includes('booking') || lowerBody.includes('reservation')) {
+        return 'travel';
+      }
+      
+      if (lowerSubject.includes('document') || lowerSubject.includes('shared') || 
+          lowerBody.includes('google doc') || lowerBody.includes('google sheet')) {
+        return 'document';
+      }
+      
+      return 'general';
+    }
+
+    // Helper function to determine importance
+    function determineImportance(labels: string[], subject: string): 'high' | 'medium' | 'low' {
+      const lowerSubject = subject.toLowerCase();
+      
+      // Check for explicit importance markers
+      if (labels.includes('IMPORTANT') || 
+          lowerSubject.includes('urgent') || 
+          lowerSubject.includes('asap') ||
+          lowerSubject.includes('important')) {
+        return 'high';
+      }
+      
+      // Check for potential medium importance indicators
+      if (labels.includes('CATEGORY_UPDATES') ||
+          lowerSubject.includes('reminder') ||
+          lowerSubject.includes('action required')) {
+        return 'medium';
+      }
+      
+      return 'low';
+    }
 
     return NextResponse.json({ emails });
   } catch (error) {
