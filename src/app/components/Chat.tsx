@@ -1,5 +1,13 @@
 "use client";
-import { ArrowUpIcon, XIcon, InfoIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  XIcon,
+  InfoIcon,
+  SearchIcon,
+  Plane,
+  ArrowLeftRight,
+  User,
+} from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import EmailSearchResults from "@/components/EmailSearchResults";
@@ -54,6 +62,7 @@ interface EmailCache {
 }
 
 interface SuggestedAction {
+  icon: React.ReactNode;
   title: string;
   description: string;
   prompt: string;
@@ -61,21 +70,25 @@ interface SuggestedAction {
 
 const SUGGESTED_ACTIONS: SuggestedAction[] = [
   {
+    icon: <SearchIcon />,
     title: "Search Emails",
     description: "Find specific emails or conversations",
     prompt: "Find my recent emails about project updates",
   },
   {
+    icon: <User />,
     title: "Summarize Meetings",
     description: "Get summaries of meeting-related emails",
     prompt: "Summarize my meeting emails from last week",
   },
   {
+    icon: <ArrowLeftRight />,
     title: "Track Orders",
     description: "Find order confirmations and tracking info",
     prompt: "Find my recent order confirmations",
   },
   {
+    icon: <Plane />,
     title: "Travel Plans",
     description: "Access travel-related emails and itineraries",
     prompt: "Show my upcoming travel itineraries",
@@ -162,6 +175,59 @@ const shouldSearchEmails = (query: string): boolean => {
 
   return hasEmailTerm || hasDatePattern || hasCommunicationPattern;
 };
+
+// Add this CSS at the top of your file or in a separate CSS module
+const orbStyles = `
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(255, 255, 255, 0.4), 0 0 80px rgba(255, 255, 255, 0.2); }
+  100% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.1); }
+}
+
+.floating-orb {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at 30% 30%, 
+    rgba(255, 255, 255, 1), 
+    rgba(255, 255, 255, 0.8) 40%,
+    rgba(255, 255, 255, 0.4) 80%
+  );
+  border-radius: 50%;
+  position: relative;
+  animation: float 6s ease-in-out infinite, pulse 4s ease-in-out infinite;
+}
+
+.floating-orb::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, 
+    rgba(255, 255, 255, 0.2), 
+    transparent 70%
+  );
+  filter: blur(10px);
+}
+
+.suggestions-container {
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.5));
+  padding: 2rem;
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+}
+`;
+
+// Add this component before the Chat component
+const FloatingOrb = () => <div className="floating-orb" />;
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -488,20 +554,20 @@ export default function Chat() {
 
   const handleClearMessages = async () => {
     try {
-      const response = await fetch('/api/messages/clear', {
-        method: 'DELETE'
+      const response = await fetch("/api/messages/clear", {
+        method: "DELETE",
       });
       if (response.ok) {
         setMessages([]);
         // Clear email-related states
         setFoundEmails([]);
-        setLastSearchQuery('');
+        setLastSearchQuery("");
         setIsSearchingEmails(false);
         setEmailCache(null);
         setSelectedEmail(null);
       }
     } catch (error) {
-      console.error('Failed to clear messages:', error);
+      console.error("Failed to clear messages:", error);
     }
   };
 
@@ -599,23 +665,23 @@ export default function Chat() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-container">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center">
-                  <h3 className="text-zinc-400 text-lg mb-6">
+                  <p className="text-3xl mb-6 text-center flex flex-col items-center justify-center tracking-tight">
                     How can I help you today?
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 max-w-3xl w-full px-4">
                     {SUGGESTED_ACTIONS.map((action, index) => (
                       <button
                         key={index}
                         onClick={() => handleSuggestionClick(action.prompt)}
-                        className="bg-zinc-900 hover:bg-zinc-800 transition-colors p-4 rounded-lg text-left group"
+                        className="bg-zinc-900/50 hover:bg-zinc-800/50 transition-all p-3 rounded-xl text-left group flex flex-col backdrop-blur-sm ring-1 ring-white/40 hover:ring-white/80"
                       >
-                        <h4 className="text-white font-medium mb-1">
-                          {action.title}
-                        </h4>
-                        <p className="text-zinc-400 text-sm">
-                          {action.description}
-                        </p>
-                        <p className="text-zinc-500 text-xs mt-2 group-hover:text-zinc-400">
+                        <div className="flex items-center gap-2">
+                          {action.icon}
+                          <h4 className="text-white/90 font-medium">
+                            {action.title}
+                          </h4>
+                        </div>
+                        <p className="text-zinc-500/90 text-xs mt-1 italic">
                           "{action.prompt}"
                         </p>
                       </button>
