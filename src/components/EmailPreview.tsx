@@ -1,7 +1,7 @@
 // src/components/EmailPreview.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, ChevronLeft, Clock, Star, Reply, MoreVertical, Paperclip } from 'lucide-react';
+import { X, ChevronLeft, Clock, Star, Reply, MoreVertical, Paperclip, ExternalLink } from 'lucide-react';
 import { Email } from '@/types/email';
 import DOMPurify from 'isomorphic-dompurify';
 
@@ -24,6 +24,11 @@ export default function EmailPreview({ email, onClose }: EmailPreviewProps) {
 
   // Sanitize HTML content
   const sanitizedHtml = email.html ? DOMPurify.sanitize(email.html) : '';
+  const getGmailUrl = (emailId: string): string => {
+    // Remove any special characters and get just the message ID
+    const cleanId = emailId.replace(/[<>]/g, '');
+    return `https://mail.google.com/mail/u/0/#inbox/${cleanId}`;
+  };
   
   console.log('Sanitized HTML length:', sanitizedHtml.length);
 
@@ -46,12 +51,25 @@ export default function EmailPreview({ email, onClose }: EmailPreviewProps) {
           </button>
           <h2 className="text-lg text-white font-medium line-clamp-1">{email.subject}</h2>
         </div>
+        <div className="flex items-center gap-2 justify-center">
+        <a
+                        href={getGmailUrl(email.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
+                        title="Open in Gmail"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-5 h-5 text-zinc-400 hover:text-white" />
+                      </a>
         <button
           onClick={onClose}
           className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
         >
+
           <X className="w-5 h-5 text-zinc-400" />
         </button>
+        </div>
       </div>
 
       {/* Email Info */}
