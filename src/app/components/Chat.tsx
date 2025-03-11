@@ -1,11 +1,11 @@
-'use client'
-import { ArrowUpIcon, XIcon, InfoIcon } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import EmailSearchResults from '@/components/EmailSearchResults';
-import { Email } from '@/types/email';
-import EmailPreview from '@/components/EmailPreview';
-import { AnimatePresence } from 'framer-motion';
+"use client";
+import { ArrowUpIcon, XIcon, InfoIcon } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import EmailSearchResults from "@/components/EmailSearchResults";
+import { Email } from "@/types/email";
+import EmailPreview from "@/components/EmailPreview";
+import { AnimatePresence } from "framer-motion";
 
 interface Message {
   text: string;
@@ -53,6 +53,35 @@ interface EmailCache {
   searchQuery: string;
 }
 
+interface SuggestedAction {
+  title: string;
+  description: string;
+  prompt: string;
+}
+
+const SUGGESTED_ACTIONS: SuggestedAction[] = [
+  {
+    title: "Search Emails",
+    description: "Find specific emails or conversations",
+    prompt: "Find my recent emails about project updates",
+  },
+  {
+    title: "Summarize Meetings",
+    description: "Get summaries of meeting-related emails",
+    prompt: "Summarize my meeting emails from last week",
+  },
+  {
+    title: "Track Orders",
+    description: "Find order confirmations and tracking info",
+    prompt: "Find my recent order confirmations",
+  },
+  {
+    title: "Travel Plans",
+    description: "Access travel-related emails and itineraries",
+    prompt: "Show my upcoming travel itineraries",
+  },
+];
+
 const DEFAULT_PROMPT = `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights and assistance.
 
 Core Functionality:
@@ -86,45 +115,71 @@ Remember: Your primary context is the user's emails, but you can provide general
 const shouldSearchEmails = (query: string): boolean => {
   // List of terms that suggest email relevance
   const emailRelatedTerms = [
-    'email', 'mail', 'gmail', 'message', 'inbox',
-    'sent', 'received', 'from', 'to',
-    'meeting', 'appointment', 'schedule',
-    'order', 'purchase', 'tracking',
-    'flight', 'booking', 'reservation',
-    'contact', 'reply', 'forward',
-    'calendar', 'invite', 'notification',
-    'newsletter', 'subscription'
+    "email",
+    "mail",
+    "gmail",
+    "message",
+    "inbox",
+    "sent",
+    "received",
+    "from",
+    "to",
+    "meeting",
+    "appointment",
+    "schedule",
+    "order",
+    "purchase",
+    "tracking",
+    "flight",
+    "booking",
+    "reservation",
+    "contact",
+    "reply",
+    "forward",
+    "calendar",
+    "invite",
+    "notification",
+    "newsletter",
+    "subscription",
   ];
 
   // Check if query contains date-related patterns
-  const hasDatePattern = /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(query);
+  const hasDatePattern =
+    /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(
+      query
+    );
 
   // Check if query contains email-related terms
-  const hasEmailTerm = emailRelatedTerms.some(term => query.toLowerCase().includes(term));
+  const hasEmailTerm = emailRelatedTerms.some((term) =>
+    query.toLowerCase().includes(term)
+  );
 
   // Check if query looks like it's asking about communication or information sharing
-  const hasCommunicationPattern = /\b(did|does|has|have|when|what|who|sent|receive|say|tell|ask|mentioned|wrote|respond|contact)\b/i.test(query);
+  const hasCommunicationPattern =
+    /\b(did|does|has|have|when|what|who|sent|receive|say|tell|ask|mentioned|wrote|respond|contact)\b/i.test(
+      query
+    );
 
   return hasEmailTerm || hasDatePattern || hasCommunicationPattern;
 };
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [temperature, setTemperature] = useState(0.7);
   const [isLoading, setIsLoading] = useState(false);
   const [model, setModel] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('selected_model') || 'gemini-1.5-flash';
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selected_model") || "gemini-1.5-flash";
     }
-    return 'gemini-1.5-flash';
+    return "gemini-1.5-flash";
   });
   const [memories, setMemories] = useState<Memory[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [systemPrompt, setSystemPrompt] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('system_prompt') || DEFAULT_PROMPT;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("system_prompt") || DEFAULT_PROMPT;
     }
     return DEFAULT_PROMPT;
   });
@@ -140,32 +195,35 @@ export default function Chat() {
   const [remainingRequests, setRemainingRequests] = useState<number>(60);
   const [isSearchingEmails, setIsSearchingEmails] = useState(false);
   const [foundEmails, setFoundEmails] = useState<Email[]>([]);
-  const [lastSearchQuery, setLastSearchQuery] = useState('');
+  const [lastSearchQuery, setLastSearchQuery] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailCache, setEmailCache] = useState<EmailCache | null>(null);
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Check for API key on component mount
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = localStorage.getItem("openai_api_key");
     if (!apiKey) {
-      window.location.href = '/playground/keys';
+      window.location.href = "/playground/keys";
     }
   }, []);
 
   useEffect(() => {
     async function loadMemories() {
       try {
-        const response = await fetch('/api/memory');
+        const response = await fetch("/api/memory");
         if (response.ok) {
           const data = (await response.json()) as APIMemoryResponse;
-          setMemories(data.memories.map(m => ({
-            ...m,
-            timestamp: new Date(m.timestamp)
-          })));
+          setMemories(
+            data.memories.map((m) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            }))
+          );
         }
       } catch (error) {
-        console.error('Failed to load memories:', error);
+        console.error("Failed to load memories:", error);
       }
     }
     loadMemories();
@@ -173,32 +231,36 @@ export default function Chat() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (tooltipRef.current && 
-          buttonRef.current && 
-          !tooltipRef.current.contains(event.target as Node) && 
-          !buttonRef.current.contains(event.target as Node)) {
+      if (
+        tooltipRef.current &&
+        buttonRef.current &&
+        !tooltipRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
         setShowTempInfo(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
     async function loadMessages() {
       try {
-        const response = await fetch('/api/messages');
+        const response = await fetch("/api/messages");
         if (response.ok) {
           const data = (await response.json()) as APIMessageResponse;
-          setMessages(data.messages.map(m => ({
-            ...m,
-            timestamp: new Date(m.timestamp)
-          })));
+          setMessages(
+            data.messages.map((m) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            }))
+          );
           setChatId(data.chatId);
         }
       } catch (error) {
-        console.error('Failed to load messages:', error);
+        console.error("Failed to load messages:", error);
       } finally {
         setIsInitializing(false);
       }
@@ -208,7 +270,7 @@ export default function Chat() {
 
   useEffect(() => {
     // Check if Gmail tokens exist in localStorage
-    const tokens = localStorage.getItem('gmail_tokens');
+    const tokens = localStorage.getItem("gmail_tokens");
     if (tokens) {
       setGmailTokens(JSON.parse(tokens));
       setIsGmailConnected(true);
@@ -218,9 +280,9 @@ export default function Chat() {
   useEffect(() => {
     // Check for tokens in URL after OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
-    const tokens = urlParams.get('tokens');
+    const tokens = urlParams.get("tokens");
     if (tokens) {
-      localStorage.setItem('gmail_tokens', tokens);
+      localStorage.setItem("gmail_tokens", tokens);
       setGmailTokens(JSON.parse(tokens));
       setIsGmailConnected(true);
       // Clean up URL
@@ -230,19 +292,19 @@ export default function Chat() {
 
   const handleDeleteMemory = async (id: string) => {
     try {
-      const response = await fetch('/api/memory/delete', {
-        method: 'DELETE',
+      const response = await fetch("/api/memory/delete", {
+        method: "DELETE",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ id }),
       });
 
       if (response.ok) {
-        setMemories(prev => prev.filter(m => m.id !== id));
+        setMemories((prev) => prev.filter((m) => m.id !== id));
       }
     } catch (error) {
-      console.error('Failed to delete memory:', error);
+      console.error("Failed to delete memory:", error);
     }
   };
 
@@ -254,16 +316,23 @@ export default function Chat() {
   };
 
   // Add this function to check if we should use cached results
-  const shouldUseCachedEmails = (query: string, cache: EmailCache | null): boolean => {
+  const shouldUseCachedEmails = (
+    query: string,
+    cache: EmailCache | null
+  ): boolean => {
     if (!isEmailCacheValid(cache)) return false;
-    
+
     // If the new query is a follow-up or related to the cached query
-    const isFollowUp = query.toLowerCase().includes(cache!.searchQuery.toLowerCase()) ||
-                      cache!.searchQuery.toLowerCase().includes(query.toLowerCase());
-    
+    const isFollowUp =
+      query.toLowerCase().includes(cache!.searchQuery.toLowerCase()) ||
+      cache!.searchQuery.toLowerCase().includes(query.toLowerCase());
+
     // Check if query contains reference words like "it", "that", "those", "these", etc.
-    const hasReferenceWords = /\b(it|that|those|these|this|they|them|the meeting|the email|the message)\b/i.test(query);
-    
+    const hasReferenceWords =
+      /\b(it|that|those|these|this|they|them|the meeting|the email|the message)\b/i.test(
+        query
+      );
+
     return isFollowUp || hasReferenceWords;
   };
 
@@ -271,9 +340,9 @@ export default function Chat() {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = localStorage.getItem("openai_api_key");
     if (!apiKey) {
-      window.location.href = '/playground/keys';
+      window.location.href = "/playground/keys";
       return;
     }
 
@@ -283,53 +352,53 @@ export default function Chat() {
       // timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInputMessage('');
+    setMessages((prev) => [...prev, newMessage]);
+    setInputMessage("");
     setIsLoading(true);
     setFoundEmails([]);
 
     try {
       let emailContext = null;
-      
+
       // Check if we should search emails
-      const tokens = localStorage.getItem('gmail_tokens');
+      const tokens = localStorage.getItem("gmail_tokens");
       if (tokens && shouldSearchEmails(inputMessage)) {
         // Check if we can use cached results
         if (shouldUseCachedEmails(inputMessage, emailCache)) {
-          console.log('Using cached email results');
+          console.log("Using cached email results");
           setFoundEmails(emailCache!.emails);
           emailContext = emailCache!.emails;
         } else {
           setIsSearchingEmails(true);
           setLastSearchQuery(inputMessage);
-          
-          const gmailResponse = await fetch('/api/gmail/search', {
-            method: 'POST',
+
+          const gmailResponse = await fetch("/api/gmail/search", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               query: inputMessage,
-              tokens: JSON.parse(tokens)
+              tokens: JSON.parse(tokens),
             }),
           });
-          
+
           if (gmailResponse.ok) {
             const emailData = await gmailResponse.json();
             const formattedEmails = emailData.emails.map((email: any) => {
               const decodeHtml = (html: string) => {
-                const txt = document.createElement('textarea');
+                const txt = document.createElement("textarea");
                 txt.innerHTML = html;
                 return txt.value;
               };
 
               return {
                 id: email.id,
-                from: email.from?.split('<')[0]?.trim() || email.from,
-                subject: decodeHtml(email.subject || ''),
+                from: email.from?.split("<")[0]?.trim() || email.from,
+                subject: decodeHtml(email.subject || ""),
                 date: new Date(email.date).toLocaleString(),
-                snippet: decodeHtml(email.snippet || ''),
-                body: decodeHtml(email.body || '')
+                snippet: decodeHtml(email.snippet || ""),
+                body: decodeHtml(email.body || ""),
               };
             });
 
@@ -338,7 +407,7 @@ export default function Chat() {
               setEmailCache({
                 emails: formattedEmails,
                 lastUpdated: new Date(),
-                searchQuery: inputMessage
+                searchQuery: inputMessage,
               });
               setFoundEmails(formattedEmails);
               emailContext = formattedEmails;
@@ -349,18 +418,15 @@ export default function Chat() {
       }
 
       // Make the chat API call with both user message and email context
-      const response = await fetch('/api/chat', {
-        method: 'POST',
+      const response = await fetch("/api/chat", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [
-            ...messages,
-            newMessage
-          ].map(msg => ({
+          messages: [...messages, newMessage].map((msg) => ({
             text: msg.text,
-            isUser: msg.isUser
+            isUser: msg.isUser,
           })),
           emailData: emailContext, // Pass emails as separate data
           model,
@@ -374,38 +440,46 @@ export default function Chat() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get response from AI');
+        throw new Error(errorData.error || "Failed to get response from AI");
       }
 
       const data = await response.json();
-      
+
       if (data.remainingRequests !== undefined) {
         setRemainingRequests(data.remainingRequests);
       }
 
       if (data.memories && data.memories.length > 0) {
-        const memoryResponse = await fetch('/api/memory');
+        const memoryResponse = await fetch("/api/memory");
         if (memoryResponse.ok) {
           const data = (await memoryResponse.json()) as APIMemoryResponse;
-          setMemories(data.memories.map(m => ({
-            ...m,
-            timestamp: new Date(m.timestamp)
-          })));
+          setMemories(
+            data.memories.map((m) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            }))
+          );
         }
       }
 
-      setMessages(prev => [...prev, {
-        text: data.text,
-        isUser: false,
-        timestamp: new Date(data.timestamp)
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: data.text,
+          isUser: false,
+          timestamp: new Date(data.timestamp),
+        },
+      ]);
     } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        text: "I apologize, but I encountered an error. Please try again.",
-        isUser: false,
-        timestamp: new Date(),
-      }]);
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: "I apologize, but I encountered an error. Please try again.",
+          isUser: false,
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
       setIsSearchingEmails(false);
@@ -419,25 +493,33 @@ export default function Chat() {
       });
       if (response.ok) {
         setMessages([]);
+        // Clear email-related states
+        setFoundEmails([]);
+        setLastSearchQuery('');
+        setIsSearchingEmails(false);
+        setEmailCache(null);
+        setSelectedEmail(null);
       }
     } catch (error) {
       console.error('Failed to clear messages:', error);
     }
   };
 
-  const handleSystemPromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleSystemPromptChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
     const newPrompt = e.target.value;
     setSystemPrompt(newPrompt);
-    localStorage.setItem('system_prompt', newPrompt);
+    localStorage.setItem("system_prompt", newPrompt);
   };
 
   const handleResetPrompt = () => {
     setSystemPrompt(DEFAULT_PROMPT);
-    localStorage.setItem('system_prompt', DEFAULT_PROMPT);
+    localStorage.setItem("system_prompt", DEFAULT_PROMPT);
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -446,19 +528,19 @@ export default function Chat() {
 
   const LoadingScreen = () => (
     <div className="flex-1 flex items-center justify-center bg-black">
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="40" 
-        height="40" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="white" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         className="animate-pulse"
       >
-        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
         <path d="M15 6l-7 12" />
         <path d="M20 6l-7 12" />
         <path d="M5 14v.015" />
@@ -469,24 +551,30 @@ export default function Chat() {
 
   const handleModelChange = (modelOption: string) => {
     setModel(modelOption);
-    localStorage.setItem('selected_model', modelOption);
+    localStorage.setItem("selected_model", modelOption);
   };
 
   const handleEmailClick = async (email: Email) => {
     try {
-      console.log('Clicking email:', {
+      console.log("Clicking email:", {
         id: email.id,
         hasHtml: !!email.html,
         htmlLength: email.html?.length,
         hasBody: !!email.body,
         bodyLength: email.body?.length,
       });
-      
+
       // Just set the selected email directly
       setSelectedEmail(email);
     } catch (error) {
-      console.error('Failed to handle email click:', error);
+      console.error("Failed to handle email click:", error);
     }
+  };
+
+  const handleSuggestionClick = (prompt: string) => {
+    setInputMessage(prompt);
+    // Auto-focus the input field
+    inputRef.current?.focus();
   };
 
   return (
@@ -498,7 +586,9 @@ export default function Chat() {
           {/* Main chat area */}
           <div className="flex-1 flex flex-col bg-black">
             <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-              <h2 className="text-zinc-400 text-lg tracking-tight font-medium">Playground</h2>
+              <h2 className="text-zinc-400 text-lg tracking-tight font-medium">
+                Playground
+              </h2>
               <button
                 onClick={handleClearMessages}
                 className="text-white hover:cursor-pointer flex items-center gap-2 text-xs border bg-red-600 border-red-600 rounded-lg px-2 py-1 hover:bg-red-600 hover:border-red-600 hover:scale-105 transition-all"
@@ -507,32 +597,65 @@ export default function Chat() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-container">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      message.isUser
-                        ? 'bg-zinc-800 text-white'
-                        : 'bg-zinc-900 text-gray-100'
-                    }`}
-                  >
-                    <ReactMarkdown
-                      components={{
-                        p: ({children}) => <p className="whitespace-pre-wrap prose prose-invert prose-sm max-w-none">{children}</p>
-                      }}
-                    >
-                      {message.text}
-                    </ReactMarkdown>
-                    {/* <p className="text-xs text-gray-500 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p> */}
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center">
+                  <h3 className="text-zinc-400 text-lg mb-6">
+                    How can I help you today?
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 max-w-2xl w-full">
+                    {SUGGESTED_ACTIONS.map((action, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSuggestionClick(action.prompt)}
+                        className="bg-zinc-900 hover:bg-zinc-800 transition-colors p-4 rounded-lg text-left group"
+                      >
+                        <h4 className="text-white font-medium mb-1">
+                          {action.title}
+                        </h4>
+                        <p className="text-zinc-400 text-sm">
+                          {action.description}
+                        </p>
+                        <p className="text-zinc-500 text-xs mt-2 group-hover:text-zinc-400">
+                          "{action.prompt}"
+                        </p>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-              
+              ) : (
+                messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${
+                      message.isUser ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${
+                        message.isUser
+                          ? "bg-zinc-800 text-white"
+                          : "bg-zinc-900 text-gray-100"
+                      }`}
+                    >
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => (
+                            <p className="whitespace-pre-wrap prose prose-invert prose-sm max-w-none">
+                              {children}
+                            </p>
+                          ),
+                        }}
+                      >
+                        {message.text}
+                      </ReactMarkdown>
+                      {/* <p className="text-xs text-gray-500 mt-1">
+                        {message.timestamp.toLocaleTimeString()}
+                      </p> */}
+                    </div>
+                  </div>
+                ))
+              )}
+
               {/* Email Search Results */}
               {(isSearchingEmails || foundEmails.length > 0) && (
                 <EmailSearchResults
@@ -547,18 +670,31 @@ export default function Chat() {
                 <div className="flex justify-start">
                   <div className="bg-zinc-900 text-gray-100 rounded-lg p-3">
                     <div className="flex space-x-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      />
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      />
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      />
                     </div>
                   </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-zinc-800">
+            <form
+              onSubmit={handleSendMessage}
+              className="p-4 border-t border-zinc-800"
+            >
               <div className="flex space-x-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -571,199 +707,11 @@ export default function Chat() {
                   className="bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isLoading}
                 >
-                  <ArrowUpIcon/>
+                  <ArrowUpIcon />
                 </button>
               </div>
             </form>
           </div>
-
-          {/* Settings panel */}
-          {/* <div className="w-80 bg-black p-6 border-l border-zinc-800 tracking-tight">
-            <div className="space-y-8">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-zinc-400 text-sm">System Prompt</label>
-                  <button 
-                    onClick={handleResetPrompt}
-                    className="text-zinc-500 text-xs hover:text-zinc-300 hover:cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                </div>
-                <textarea
-                  value={systemPrompt}
-                  onChange={handleSystemPromptChange}
-                  className="w-full bg-zinc-800/50 text-zinc-300 text-sm rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-1 focus:ring-zinc-700 resize-none"
-                  placeholder="Enter system prompt..."
-                />
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-zinc-400 text-sm">Model</label>
-                    <span className="text-zinc-500 text-xs">
-                      {model === 'gemini-1.5-flash' && 'Free'}
-                      {model === 'gpt-3.5-turbo' && '$0.002/1K tokens'}
-                      {model === 'gpt-3.5-turbo-16k' && '$0.003/1K tokens'}
-                      {model === 'gpt-4' && '$0.03/1K tokens'}
-                      {model === 'gpt-4-32k' && '$0.06/1K tokens'}
-                      {model === 'gpt-4-turbo-preview' && '$0.01/1K tokens'}
-                      {model === 'gpt-4o-mini' && '$0.0015/1K tokens'}
-                    </span>
-                  </div>
-                  <div className="relative h-[120px] overflow-hidden bg-zinc-800/50 rounded-lg">
-                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-zinc-900/20 via-transparent to-zinc-900/20" />
-                    <div className="relative h-full flex flex-col items-center py-2 overflow-y-auto hide-scrollbar">
-                      {[
-                        "gemini-1.5-flash",
-                        "gpt-4o-mini",
-                        "gpt-3.5-turbo",
-                        "gpt-3.5-turbo-16k",
-                        "gpt-4",
-                        "gpt-4-turbo-preview",
-                        "gpt-4-32k",
-                      ].map((modelOption) => (
-                        <button
-                          key={modelOption}
-                          onClick={() => handleModelChange(modelOption)}
-                          onMouseEnter={() => setHoveredModel(modelOption)}
-                          onMouseLeave={() => setHoveredModel(null)}
-                          className={`
-                            w-full px-4 py-2 transition-all duration-200 text-sm
-                            ${model === modelOption ? 'text-white' : 'text-zinc-400'}
-                            ${hoveredModel === modelOption ? 'text-zinc-200' : ''}
-                          `}
-                          style={{
-                            transform: `scale(${model === modelOption ? 1.1 : 
-                                         hoveredModel === modelOption ? 1.05 : 1})
-                                       translateY(${model === modelOption ? '0px' : '0px'})`,
-                            opacity: model === modelOption ? 1 : 0.7,
-                          }}
-                        >
-                          {modelOption}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {model === 'gemini-1.5-flash' && (
-                    <div className="text-xs text-zinc-500 mt-2 text-center">
-                      {remainingRequests} requests remaining this minute
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 relative">
-                      <label className="text-zinc-400 text-sm">Temperature</label>
-                      <button 
-                        ref={buttonRef}
-                        onClick={() => setShowTempInfo(!showTempInfo)}
-                        className="text-zinc-500 hover:text-zinc-300 transition-colors hover:cursor-pointer"
-                      >
-                        <InfoIcon className="w-4 h-4" />
-                      </button>
-                      {showTempInfo && (
-                        <div 
-                          ref={tooltipRef}
-                          className="absolute mt-2 w-64 p-2 bg-zinc-800 rounded-lg shadow-lg text-xs text-zinc-300 z-10"
-                        >
-                          <p>Controls response randomness:</p>
-                          <ul className="mt-1 space-y-1">
-                            <li>• 0: Focused, consistent</li>
-                            <li>• 0.7: Balanced creativity</li>
-                            <li>• 1: Maximum randomness</li>
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-zinc-500 text-xs">{temperature}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={temperature}
-                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                    className="w-full accent-white"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 relative">
-                      <label className="text-zinc-400 text-sm">Response Length</label>
-                      <button 
-                        onClick={() => setShowTempInfo(!showTempInfo)}
-                        className="text-zinc-500 hover:text-zinc-300 transition-colors hover:cursor-pointer"
-                      >
-                        <InfoIcon className="w-4 h-4" />
-                      </button>
-                      {showTempInfo && (
-                        <div 
-                          className="absolute mt-2 w-64 p-2 bg-zinc-800 rounded-lg shadow-lg text-xs text-zinc-300 z-10"
-                        >
-                          <p>Controls response length:</p>
-                          <ul className="mt-1 space-y-1">
-                            <li>• 128: Short responses</li>
-                            <li>• 256: Medium responses</li>
-                            <li>• 512: Long responses</li>
-                            <li>• 1024: Very detailed responses</li>
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-zinc-500 text-xs">{maxTokens} tokens</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="128"
-                    max="1024"
-                    step="128"
-                    value={maxTokens}
-                    onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                    className="w-full accent-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-zinc-400 text-sm font-medium">Memories</h3>
-                  <span className="text-zinc-500 text-xs">{memories.length} saved</span>
-                </div>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 chat-container">
-                  {memories.map((memory) => (
-                    <div 
-                      key={memory.id} 
-                      className="group relative bg-zinc-800/50 rounded-lg p-3 pr-8 transition-all hover:bg-zinc-800"
-                    >
-                      <p className="text-zinc-300 text-sm">{memory.text}</p>
-                      <p className="text-zinc-600 text-xs mt-1">
-                        {memory.timestamp.toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })} • {memory.timestamp.toLocaleDateString()}
-                      </p>
-                      <button 
-                        onClick={() => handleDeleteMemory(memory.id)}
-                        className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 transition-opacity hover:cursor-pointer"
-                      >
-                        <XIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {memories.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-zinc-600 text-sm">No memories saved yet</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div> */}
 
           {/* Warning banner */}
           {geminiWarning && (
@@ -784,4 +732,4 @@ export default function Chat() {
       )}
     </div>
   );
-} 
+}
