@@ -11,6 +11,7 @@ export interface Email {
   importance: 'high' | 'medium' | 'low';
   hasAttachments: boolean;
   labels: string[];
+  relevanceScore?: number;
 }
 
 export interface EmailSearchResult {

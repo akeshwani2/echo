@@ -145,6 +145,12 @@ Never show raw email IDs in the text.`;
 
 // Add this function before the Chat component
 const shouldSearchEmails = (query: string): boolean => {
+  // Normalize the query
+  const normalizedQuery = query.toLowerCase().trim();
+  
+  // If the query is too short, don't search emails
+  if (normalizedQuery.length < 3) return false;
+  
   // List of terms that suggest email relevance
   const emailRelatedTerms = [
     "email",
@@ -173,26 +179,54 @@ const shouldSearchEmails = (query: string): boolean => {
     "notification",
     "newsletter",
     "subscription",
+    "document",
+    "sign",
+    "signature",
+    "contract",
+    "docusign",
+    "agreement",
+    "form",
+    "paperwork",
   ];
 
   // Check if query contains date-related patterns
   const hasDatePattern =
     /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(
-      query
+      normalizedQuery
     );
 
   // Check if query contains email-related terms
   const hasEmailTerm = emailRelatedTerms.some((term) =>
-    query.toLowerCase().includes(term)
+    normalizedQuery.includes(term)
   );
 
   // Check if query looks like it's asking about communication or information sharing
   const hasCommunicationPattern =
     /\b(did|does|has|have|when|what|who|sent|receive|say|tell|ask|mentioned|wrote|respond|contact)\b/i.test(
-      query
+      normalizedQuery
     );
+    
+  // Check if query is specifically about documents to sign
+  const isDocumentSigningQuery = 
+    /\b(document|contract|agreement|form|sign|signature|docusign|paperwork)\b/i.test(normalizedQuery) &&
+    /\b(need|have|to|pending|waiting|require|sign|review|approve|complete)\b/i.test(normalizedQuery);
+    
+  // Check if query is directly asking about emails
+  const isDirectEmailQuery = 
+    /\b(find|search|show|get|list|display|any|all|recent|latest|old|new)\b/i.test(normalizedQuery) &&
+    /\b(email|mail|message|inbox)\b/i.test(normalizedQuery);
+    
+  // Check if query is asking about specific email types
+  const isSpecificEmailTypeQuery =
+    /\b(unread|important|starred|flagged|labeled|archived|deleted|spam|trash|draft)\b/i.test(normalizedQuery) &&
+    /\b(email|mail|message|inbox)\b/i.test(normalizedQuery);
 
-  return hasEmailTerm || hasDatePattern || hasCommunicationPattern;
+  return hasEmailTerm || 
+         hasDatePattern || 
+         hasCommunicationPattern || 
+         isDocumentSigningQuery || 
+         isDirectEmailQuery || 
+         isSpecificEmailTypeQuery;
 };
 
 // Add this CSS at the top of your file or in a separate CSS module
