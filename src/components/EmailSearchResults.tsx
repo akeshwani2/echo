@@ -1,7 +1,14 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronRight } from 'lucide-react';
+import { Search, ChevronRight, ExternalLink } from 'lucide-react';
 import { Email, EmailSearchResult } from '@/types/email';
+
+// Update the helper function
+const getGmailUrl = (emailId: string): string => {
+  // Remove any special characters and get just the message ID
+  const cleanId = emailId.replace(/[<>]/g, '');
+  return `https://mail.google.com/mail/u/0/#inbox/${cleanId}`;
+};
 
 export default function EmailSearchResults({
   isSearching,
@@ -49,18 +56,38 @@ export default function EmailSearchResults({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="p-4 rounded-lg bg-zinc-900/90 border border-white/50 cursor-pointer hover:bg-zinc-800/90 transition-all group relative"
-                  onClick={() => onEmailClick(email)}
+                  className="p-4 rounded-lg bg-zinc-900/90 border border-white/50 hover:bg-zinc-800/90 transition-all group relative"
                 >
                   <div className="flex justify-between items-start mb-1">
                     <div className="text-sm text-white/90">{email.from}</div>
-                    <div className="text-xs text-zinc-500">{email.date}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-zinc-500">{email.date}</div>
+                      <a
+                        href={getGmailUrl(email.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 hover:bg-zinc-700 rounded transition-colors"
+                        title="Open in Gmail"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-4 h-4 text-zinc-400 hover:text-white" />
+                      </a>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEmailClick(email);
+                        }}
+                        className="p-1 hover:bg-zinc-700 rounded transition-colors"
+                        title="Preview email"
+                      >
+                        <ChevronRight className="w-4 h-4 text-zinc-400 hover:text-white" />
+                      </button>
+                    </div>
                   </div>
                   <div className="text-sm text-white/80 mb-1">{email.subject}</div>
                   <div className="text-xs text-zinc-500 line-clamp-2">
                     {email.snippet}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-600 absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </motion.div>
               ))}
             </AnimatePresence>

@@ -14,3 +14,7 @@ export interface EmailSearchResult {
   emails: Email[];
   onEmailClick: (email: Email) => void;
 } 
+
+export const getGmailUrl = (emailId: string): string => {
+  return `https://mail.google.com/mail/u/0/#search/rfc822msgid:${emailId}`;
+};
