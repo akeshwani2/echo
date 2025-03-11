@@ -47,29 +47,67 @@ interface FormattedEmail {
   content: string;
 }
 
-const DEFAULT_PROMPT = `You are Echo, a friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails.
+interface EmailCache {
+  emails: Email[];
+  lastUpdated: Date;
+  searchQuery: string;
+}
 
-When handling email-related queries:
-1. Analyze the provided email data thoroughly
-2. Present information in a clear, structured format
-3. For appointments/meetings/flights:
-   - Extract and highlight key dates, times, and locations
-   - List important details like confirmation numbers, contact info
-   - Mention any specific requirements or deadlines
-4. For orders/purchases:
-   - Show order details, tracking numbers, delivery dates
-   - Include pricing information when relevant
-5. Always provide context about which emails were used to find the information
+const DEFAULT_PROMPT = `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights and assistance.
 
-Conversation Guidelines:
-- Only use greetings for the first message in a conversation
-- Focus on continuing the natural flow of conversation
-- Use the user's name occasionally but not in every message
-- Maintain a friendly tone without being overly formal
-- Remember and reference previous context naturally
-- Don't save any memories about the emails. Any info you get from the emails should be used to answer the user's question, that's it, don't save any memories about the emails.
+Core Functionality:
+1. ALWAYS check email context first for any query, even if it doesn't explicitly mention emails
+2. When email context is relevant:
+   - Analyze email data thoroughly
+   - Present information clearly and concisely
+   - Extract key details (dates, times, locations, numbers)
+   - Provide context about which emails were used
+3. When email context isn't relevant or sufficient:
+   - Clearly state that you're using general knowledge
+   - Provide helpful information from your general knowledge
+   - Explain why email context wasn't applicable
 
-You can handle email queries like "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information about preferences and experiences.`;
+Email Processing Guidelines:
+- For appointments/meetings: Extract dates, times, locations, participants
+- For orders/purchases: Show order details, tracking, delivery dates
+- For travel: Highlight flight times, confirmation numbers, itineraries
+- For general correspondence: Summarize key points and action items
+
+Communication Style:
+- Be concise and professional
+- Focus on email-centric assistance
+- Maintain conversation flow naturally
+- Use the user's name occasionally
+- Don't save memories about email content between conversations
+
+Remember: Your primary context is the user's emails, but you can provide general assistance when email context isn't relevant or available.`;
+
+// Add this function before the Chat component
+const shouldSearchEmails = (query: string): boolean => {
+  // List of terms that suggest email relevance
+  const emailRelatedTerms = [
+    'email', 'mail', 'gmail', 'message', 'inbox',
+    'sent', 'received', 'from', 'to',
+    'meeting', 'appointment', 'schedule',
+    'order', 'purchase', 'tracking',
+    'flight', 'booking', 'reservation',
+    'contact', 'reply', 'forward',
+    'calendar', 'invite', 'notification',
+    'newsletter', 'subscription'
+  ];
+
+  // Check if query contains date-related patterns
+  const hasDatePattern = /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(query);
+
+  // Check if query contains email-related terms
+  const hasEmailTerm = emailRelatedTerms.some(term => query.toLowerCase().includes(term));
+
+  // Check if query looks like it's asking about communication or information sharing
+  const hasCommunicationPattern = /\b(did|does|has|have|when|what|who|sent|receive|say|tell|ask|mentioned|wrote|respond|contact)\b/i.test(query);
+
+  return hasEmailTerm || hasDatePattern || hasCommunicationPattern;
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -104,6 +142,8 @@ export default function Chat() {
   const [foundEmails, setFoundEmails] = useState<Email[]>([]);
   const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [emailCache, setEmailCache] = useState<EmailCache | null>(null);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   useEffect(() => {
     // Check for API key on component mount
@@ -206,6 +246,27 @@ export default function Chat() {
     }
   };
 
+  // Add this function to check if cache is valid
+  const isEmailCacheValid = (cache: EmailCache | null): boolean => {
+    if (!cache) return false;
+    const now = new Date();
+    return now.getTime() - cache.lastUpdated.getTime() < CACHE_DURATION;
+  };
+
+  // Add this function to check if we should use cached results
+  const shouldUseCachedEmails = (query: string, cache: EmailCache | null): boolean => {
+    if (!isEmailCacheValid(cache)) return false;
+    
+    // If the new query is a follow-up or related to the cached query
+    const isFollowUp = query.toLowerCase().includes(cache!.searchQuery.toLowerCase()) ||
+                      cache!.searchQuery.toLowerCase().includes(query.toLowerCase());
+    
+    // Check if query contains reference words like "it", "that", "those", "these", etc.
+    const hasReferenceWords = /\b(it|that|those|these|this|they|them|the meeting|the email|the message)\b/i.test(query);
+    
+    return isFollowUp || hasReferenceWords;
+  };
+
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
@@ -230,14 +291,15 @@ export default function Chat() {
     try {
       let emailContext = null;
       
-      // First, check and fetch emails if needed
-      if (inputMessage.toLowerCase().includes('email') || 
-          inputMessage.toLowerCase().includes('flight') ||
-          inputMessage.toLowerCase().includes('order') ||
-          inputMessage.toLowerCase().includes('appointment')) {
-        
-        const tokens = localStorage.getItem('gmail_tokens');
-        if (tokens) {
+      // Check if we should search emails
+      const tokens = localStorage.getItem('gmail_tokens');
+      if (tokens && shouldSearchEmails(inputMessage)) {
+        // Check if we can use cached results
+        if (shouldUseCachedEmails(inputMessage, emailCache)) {
+          console.log('Using cached email results');
+          setFoundEmails(emailCache!.emails);
+          emailContext = emailCache!.emails;
+        } else {
           setIsSearchingEmails(true);
           setLastSearchQuery(inputMessage);
           
@@ -271,14 +333,22 @@ export default function Chat() {
               };
             });
 
-            setFoundEmails(formattedEmails);
-            emailContext = formattedEmails;
+            if (formattedEmails.length > 0) {
+              // Update cache with new results
+              setEmailCache({
+                emails: formattedEmails,
+                lastUpdated: new Date(),
+                searchQuery: inputMessage
+              });
+              setFoundEmails(formattedEmails);
+              emailContext = formattedEmails;
+            }
           }
           setIsSearchingEmails(false);
         }
       }
 
-      // Then make the chat API call with both user message and email context
+      // Make the chat API call with both user message and email context
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {

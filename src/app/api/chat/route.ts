@@ -108,28 +108,53 @@ export async function POST(req: Request) {
         const geminiChat = geminiModel.startChat({
           history: [{
             role: 'user',
-            parts: [{ text: `You are Echo, a friendly AI companion. You have access to the user's emails which will be provided as structured data. When discussing emails:
-            1. Analyze the email data provided
-            2. Answer questions about specific emails
-            3. Summarize email content when asked
-            4. Help find specific information in emails
-            5. Don't save any memories about the emails. Any info you get from the emails should be used to answer the user's question, that's it, don't save any memories about the emails.
-            
-            ${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
+            parts: [{ text: `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights and assistance.
+
+Core Instructions:
+1. Maintain conversational context:
+   - Remember the topic being discussed
+   - Use previous messages for context
+   - Reference previous findings when relevant
+   - Use pronouns (it, that, this) appropriately
+2. When handling email data:
+   - Analyze thoroughly and extract key details
+   - Present information clearly and concisely
+   - Cite which emails you're referencing
+   - Connect information across multiple emails when relevant
+3. For follow-up questions:
+   - Reference previous answers
+   - Use context from earlier in the conversation
+   - Make connections between related pieces of information
+4. When context isn't relevant:
+   - Explain why you're switching to general knowledge
+   - Maintain a smooth conversation flow
+
+Example of good contextual responses:
+User: "When's my next meeting?"
+Assistant: "Your next meeting is with Sarah on Tuesday at 2 PM"
+User: "What's the link for it?"
+Assistant: "For your Tuesday meeting with Sarah, here's the Zoom link: [...]"
+
+${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
           }],
         });
 
-        // Structure the context differently
+        // Structure the context with clear separation and include conversation history
         const context = {
-          memories: memoryContext,
-          emails: emailData ? `Available Emails: ${JSON.stringify(emailData, null, 2)}` : null,
-          userQuery: messages[messages.length - 1].text
+          userQuery: messages[messages.length - 1].text,
+          conversationHistory: messages.slice(-5).map((m: ChatMessage) => ({
+            role: m.isUser ? 'user' : 'assistant',
+            content: m.text
+          })),
+          emailContext: emailData ? `Available Email Data:\n${JSON.stringify(emailData, null, 2)}` : 'No email data available.',
+          memories: memoryContext
         };
 
         const result = await geminiChat.sendMessage(
-          `User Query: ${context.userQuery}\n\n` +
-          `${context.memories}\n\n` +
-          `${context.emails ? context.emails : 'No email data available for this query.'}`
+          `Current Query: ${context.userQuery}\n\n` +
+          `Recent Conversation:\n${context.conversationHistory.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}\n\n` +
+          `Email Context:\n${context.emailContext}\n\n` +
+          `Previous Context:\n${context.memories}`
         );
         const content = result.response.text();
         

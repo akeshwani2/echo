@@ -9,6 +9,11 @@ export default function EmailSearchResults({
   emails,
   onEmailClick,
 }: EmailSearchResult) {
+  // Don't render anything if not searching and no emails found
+  if (!isSearching && emails.length === 0) {
+    return null;
+  }
+
   return (
     <div className="space-y-4 text-white">
       {/* Search Status */}
@@ -18,12 +23,12 @@ export default function EmailSearchResults({
           animate={{ opacity: 1 }}
           className="text-zinc-400 text-sm bg-zinc-800/50 p-4 rounded-lg"
         >
-          Let me search through your emails for any '{searchQuery}' -related information.
-          </motion.div>
+          Searching through your emails for relevant information...
+        </motion.div>
       )}
 
       {/* Search Results */}
-      {emails.length > 0 && (
+      {!isSearching && emails.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }} 
@@ -32,7 +37,7 @@ export default function EmailSearchResults({
           {/* Header */}
           <div className="p-3 flex items-center gap-2 text-sm border-b border-white/50">
             <Search className="w-4 h-4" />
-            <span className="text-white/90">{emails.length} emails found</span>
+            <span className="text-white/90">Found {emails.length} relevant emails</span>
           </div>
 
           {/* Scrollable Email List */}
