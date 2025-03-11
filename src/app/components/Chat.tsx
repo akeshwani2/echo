@@ -10,7 +10,7 @@ import { AnimatePresence } from 'framer-motion';
 interface Message {
   text: string;
   isUser: boolean;
-  timestamp: Date;
+  // timestamp: Date;
 }
 
 interface Memory {
@@ -280,7 +280,7 @@ export default function Chat() {
     const newMessage: Message = {
       text: inputMessage,
       isUser: true,
-      timestamp: new Date(),
+      // timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -526,9 +526,9 @@ export default function Chat() {
                     >
                       {message.text}
                     </ReactMarkdown>
-                    <p className="text-xs text-gray-500 mt-1">
+                    {/* <p className="text-xs text-gray-500 mt-1">
                       {message.timestamp.toLocaleTimeString()}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               ))}
@@ -578,9 +578,8 @@ export default function Chat() {
           </div>
 
           {/* Settings panel */}
-          <div className="w-80 bg-black p-6 border-l border-zinc-800 tracking-tight">
+          {/* <div className="w-80 bg-black p-6 border-l border-zinc-800 tracking-tight">
             <div className="space-y-8">
-              {/* System Prompt section */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-zinc-400 text-sm">System Prompt</label>
@@ -599,28 +598,6 @@ export default function Chat() {
                 />
               </div>
 
-              {/* Gmail Integration */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-zinc-400 text-sm">Gmail Integration</label>
-                  <button 
-                    onClick={async () => {
-                      const response = await fetch('/api/gmail/auth');
-                      const { url } = await response.json();
-                      window.location.href = url;
-                    }}
-                    className={`text-xs px-2 py-1 rounded-lg transition-all ${
-                      isGmailConnected 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                    }`}
-                  >
-                    {isGmailConnected ? 'Gmail Connected' : 'Connect Gmail'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Model & Temperature controls */}
               <div className="space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -752,7 +729,6 @@ export default function Chat() {
                 </div>
               </div>
 
-              {/* Memories section */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-zinc-400 text-sm font-medium">Memories</h3>
@@ -787,7 +763,7 @@ export default function Chat() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Warning banner */}
           {geminiWarning && (

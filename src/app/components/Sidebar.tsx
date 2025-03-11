@@ -17,8 +17,9 @@ export default function Sidebar() {
   const navigationItems = [
     { icon: TerminalSquareIcon, label: 'Playground', href: '/playground' },
     { icon: Key, label: 'API Keys', href: '/playground/keys' },
-    { icon: FileText, label: 'Docs', href: '/docs' },
     { icon: Mail, label: 'Gmail', href: '/playground/gmail' },
+
+    { icon: FileText, label: 'Docs', href: '/docs' },
   ];
 
   return (
