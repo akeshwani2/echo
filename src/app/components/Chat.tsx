@@ -2,6 +2,8 @@
 import { ArrowUpIcon, XIcon, InfoIcon } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import EmailSearchResults from '@/components/EmailSearchResults';
+import { Email } from '@/types/email';
 
 interface Message {
   text: string;
@@ -45,6 +47,18 @@ interface FormattedEmail {
 
 const DEFAULT_PROMPT = `You are Echo, a friendly AI companion. Your primary purpose is to engage in conversations while remembering important details shared by the user. You can also access the user's Gmail when they ask about their emails.
 
+When handling email-related queries:
+1. Analyze the provided email data thoroughly
+2. Present information in a clear, structured format
+3. For appointments/meetings/flights:
+   - Extract and highlight key dates, times, and locations
+   - List important details like confirmation numbers, contact info
+   - Mention any specific requirements or deadlines
+4. For orders/purchases:
+   - Show order details, tracking numbers, delivery dates
+   - Include pricing information when relevant
+5. Always provide context about which emails were used to find the information
+
 Conversation Guidelines:
 - Only use greetings for the first message in a conversation
 - Focus on continuing the natural flow of conversation
@@ -52,6 +66,7 @@ Conversation Guidelines:
 - Maintain a friendly tone without being overly formal
 - Remember and reference previous context naturally
 - Don't save any memories about the emails. Any info you get from the emails should be used to answer the user's question, that's it, don't save any memories about the emails.
+
 You can handle email queries like "When is my flight?" or "Show me my recent Amazon orders." Listen carefully and store meaningful information about preferences and experiences.`;
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,6 +98,9 @@ export default function Chat() {
   const [gmailTokens, setGmailTokens] = useState<any>(null);
   const [geminiWarning, setGeminiWarning] = useState(false);
   const [remainingRequests, setRemainingRequests] = useState<number>(60);
+  const [isSearchingEmails, setIsSearchingEmails] = useState(false);
+  const [foundEmails, setFoundEmails] = useState<Email[]>([]);
+  const [lastSearchQuery, setLastSearchQuery] = useState('');
 
   useEffect(() => {
     // Check for API key on component mount
@@ -204,6 +222,7 @@ export default function Chat() {
     setMessages(prev => [...prev, newMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setFoundEmails([]);
 
     try {
       let emailContext = null;
@@ -216,6 +235,9 @@ export default function Chat() {
         
         const tokens = localStorage.getItem('gmail_tokens');
         if (tokens) {
+          setIsSearchingEmails(true);
+          setLastSearchQuery(inputMessage);
+          
           const gmailResponse = await fetch('/api/gmail/search', {
             method: 'POST',
             headers: {
@@ -229,7 +251,7 @@ export default function Chat() {
           
           if (gmailResponse.ok) {
             const emailData = await gmailResponse.json();
-            emailContext = emailData.emails.map((email: any) => {
+            const formattedEmails = emailData.emails.map((email: any) => {
               const decodeHtml = (html: string) => {
                 const txt = document.createElement('textarea');
                 txt.innerHTML = html;
@@ -237,14 +259,19 @@ export default function Chat() {
               };
 
               return {
+                id: email.id,
                 from: email.from?.split('<')[0]?.trim() || email.from,
                 subject: decodeHtml(email.subject || ''),
                 date: new Date(email.date).toLocaleString(),
-                content: decodeHtml(email.snippet || ''),
-                raw: email // Keep the raw email data in case we need it
+                snippet: decodeHtml(email.snippet || ''),
+                body: decodeHtml(email.body || '')
               };
             });
+
+            setFoundEmails(formattedEmails);
+            emailContext = formattedEmails;
           }
+          setIsSearchingEmails(false);
         }
       }
 
@@ -308,6 +335,7 @@ export default function Chat() {
       }]);
     } finally {
       setIsLoading(false);
+      setIsSearchingEmails(false);
     }
   };
 
@@ -371,6 +399,12 @@ export default function Chat() {
     localStorage.setItem('selected_model', modelOption);
   };
 
+  const handleEmailClick = (email: Email) => {
+    // You can implement what happens when an email is clicked
+    // For example, show more details or copy to clipboard
+    console.log('Email clicked:', email);
+  };
+
   return (
     <div className="flex h-screen tracking-tight">
       {isInitializing ? (
@@ -414,6 +448,17 @@ export default function Chat() {
                   </div>
                 </div>
               ))}
+              
+              {/* Email Search Results */}
+              {(isSearchingEmails || foundEmails.length > 0) && (
+                <EmailSearchResults
+                  isSearching={isSearchingEmails}
+                  searchQuery={lastSearchQuery}
+                  emails={foundEmails}
+                  onEmailClick={handleEmailClick}
+                />
+              )}
+
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-zinc-900 text-gray-100 rounded-lg p-3">
