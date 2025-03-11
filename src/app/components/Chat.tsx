@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import EmailSearchResults from '@/components/EmailSearchResults';
 import { Email } from '@/types/email';
+import EmailPreview from '@/components/EmailPreview';
+import { AnimatePresence } from 'framer-motion';
 
 interface Message {
   text: string;
@@ -101,6 +103,7 @@ export default function Chat() {
   const [isSearchingEmails, setIsSearchingEmails] = useState(false);
   const [foundEmails, setFoundEmails] = useState<Email[]>([]);
   const [lastSearchQuery, setLastSearchQuery] = useState('');
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
 
   useEffect(() => {
     // Check for API key on component mount
@@ -399,10 +402,21 @@ export default function Chat() {
     localStorage.setItem('selected_model', modelOption);
   };
 
-  const handleEmailClick = (email: Email) => {
-    // You can implement what happens when an email is clicked
-    // For example, show more details or copy to clipboard
-    console.log('Email clicked:', email);
+  const handleEmailClick = async (email: Email) => {
+    try {
+      console.log('Clicking email:', {
+        id: email.id,
+        hasHtml: !!email.html,
+        htmlLength: email.html?.length,
+        hasBody: !!email.body,
+        bodyLength: email.body?.length,
+      });
+      
+      // Just set the selected email directly
+      setSelectedEmail(email);
+    } catch (error) {
+      console.error('Failed to handle email click:', error);
+    }
   };
 
   return (
@@ -711,6 +725,15 @@ export default function Chat() {
               Gemini rate limit reached. Switched to GPT backup model.
             </div>
           )}
+
+          <AnimatePresence>
+            {selectedEmail && (
+              <EmailPreview
+                email={selectedEmail}
+                onClose={() => setSelectedEmail(null)}
+              />
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

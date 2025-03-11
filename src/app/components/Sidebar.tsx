@@ -6,6 +6,7 @@ import {
   Key, 
   FileText, 
   TerminalSquareIcon,
+  Mail,
 } from 'lucide-react';
 import ProtocolLogo from '../../../public/protocolLogo.svg';
 import { UserButton } from '@clerk/nextjs';
@@ -17,6 +18,7 @@ export default function Sidebar() {
     { icon: TerminalSquareIcon, label: 'Playground', href: '/playground' },
     { icon: Key, label: 'API Keys', href: '/playground/keys' },
     { icon: FileText, label: 'Docs', href: '/docs' },
+    { icon: Mail, label: 'Gmail', href: '/playground/gmail' },
   ];
 
   return (

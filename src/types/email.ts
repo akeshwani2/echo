@@ -5,6 +5,7 @@ export interface Email {
   date: string;
   snippet: string;
   body: string;
+  html?: string;  // Optional HTML content
 }
 
 export interface EmailSearchResult {
