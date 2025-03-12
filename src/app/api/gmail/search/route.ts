@@ -9,6 +9,12 @@ interface EmailHeader {
   value: string;
 }
 
+// Add interface for date range
+interface DateRange {
+  after?: string; // Format: YYYY/MM/DD
+  before?: string; // Format: YYYY/MM/DD
+}
+
 function getOAuthClient(tokens: any): OAuth2Client {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -17,6 +23,34 @@ function getOAuthClient(tokens: any): OAuth2Client {
   );
   oauth2Client.setCredentials(tokens);
   return oauth2Client;
+}
+
+// Function to build Gmail search query with date filters
+function buildSearchQuery(baseQuery: string, dateRange?: DateRange): string {
+  let query = baseQuery;
+  
+  if (dateRange) {
+    // Add after: filter if provided
+    if (dateRange.after) {
+      query += ` after:${dateRange.after.replace(/-/g, '/')}`;
+    }
+    
+    // Add before: filter if provided
+    if (dateRange.before) {
+      query += ` before:${dateRange.before.replace(/-/g, '/')}`;
+    }
+  }
+  
+  return query.trim();
+}
+
+// Function to get default date range for current year
+function getCurrentYearDateRange(): DateRange {
+  const currentYear = new Date().getFullYear();
+  return {
+    after: `${currentYear}/01/01`,
+    before: `${currentYear + 1}/01/01`
+  };
 }
 
 // Function to calculate relevance score based on query and email content
@@ -77,13 +111,18 @@ function calculateRelevanceScore(query: string, email: any): number {
 
 export async function POST(req: Request) {
   try {
-    const { tokens, query } = await req.json();
+    const { tokens, query, dateRange } = await req.json();
     const gmail = google.gmail({ version: 'v1', auth: getOAuthClient(tokens) });
 
+    // Use provided date range or default to current year
+    const searchDateRange = dateRange || getCurrentYearDateRange();
+    
     // First, always fetch recent emails to ensure we have results
+    // Apply date range to primary category search
+    const primaryQuery = buildSearchQuery('category:primary', searchDateRange);
     const searchResponse = await gmail.users.messages.list({
       userId: 'me',
-      q: 'category:primary',
+      q: primaryQuery,
       maxResults: 20, // Fetch 20 recent emails
     });
 
@@ -95,9 +134,11 @@ export async function POST(req: Request) {
     let queryMessages: gmail_v1.Schema$Message[] = [];
     if (query && query.length > 3) {
       try {
+        // Apply date range to specific query search
+        const specificQuery = buildSearchQuery(query, searchDateRange);
         const queryResponse = await gmail.users.messages.list({
           userId: 'me',
-          q: query,
+          q: specificQuery,
           maxResults: 30, // Fetch up to 30 query-specific emails
         });
         
@@ -233,7 +274,11 @@ export async function POST(req: Request) {
       return 'low';
     }
 
-    return NextResponse.json({ emails: scoredEmails });
+    // Return emails along with the date range used
+    return NextResponse.json({ 
+      emails: scoredEmails,
+      dateRange: searchDateRange
+    });
   } catch (error) {
     console.error('Gmail search error:', error);
     return NextResponse.json(

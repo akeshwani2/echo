@@ -19,6 +19,7 @@ export interface EmailSearchResult {
   searchQuery: string;
   emails: Email[];
   onEmailClick: (email: Email) => void;
+  dateRange?: any; // Date range used for the search
 } 
 
 export const getGmailUrl = (emailId: string): string => {

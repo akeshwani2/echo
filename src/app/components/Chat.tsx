@@ -61,6 +61,7 @@ interface EmailCache {
   emails: Email[];
   lastUpdated: Date;
   searchQuery: string;
+  dateRange?: any;
 }
 
 interface SuggestedAction {
@@ -191,7 +192,13 @@ const shouldSearchEmails = (query: string): boolean => {
 
   // Check if query contains date-related patterns
   const hasDatePattern =
-    /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(
+    /\b(today|yesterday|tomorrow|last|next|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|2023|2024|2022|2021|2020|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+      normalizedQuery
+    );
+
+  // Check if query contains time period references
+  const hasTimePeriodReference =
+    /\b(this year|last year|current year|in 20\d\d|from 20\d\d|during 20\d\d|for 20\d\d|in january|in february|in march|in april|in may|in june|in july|in august|in september|in october|in november|in december)\b/i.test(
       normalizedQuery
     );
 
@@ -223,13 +230,99 @@ const shouldSearchEmails = (query: string): boolean => {
 
   return hasEmailTerm || 
          hasDatePattern || 
+         hasTimePeriodReference ||
          hasCommunicationPattern || 
          isDocumentSigningQuery || 
          isDirectEmailQuery || 
          isSpecificEmailTypeQuery;
 };
 
+// Add this function to extract date range from query
+function extractDateRangeFromQuery(query: string): { dateRange: any, cleanQuery: string } | null {
+  // Default to current year if no specific date mentioned
+  const currentYear = new Date().getFullYear();
+  let dateRange = {
+    after: `${currentYear}/01/01`,
+    before: `${currentYear + 1}/01/01`
+  };
+  
+  let cleanQuery = query;
+  
+  // Check for "this year" or "current year"
+  if (/\b(this|current)\s+year\b/i.test(query)) {
+    cleanQuery = query.replace(/\b(this|current)\s+year\b/i, '').trim();
+    // Keep default date range (current year)
+  }
+  
+  // Check for "last year"
+  else if (/\blast\s+year\b/i.test(query)) {
+    const lastYear = currentYear - 1;
+    dateRange = {
+      after: `${lastYear}/01/01`,
+      before: `${lastYear + 1}/01/01`
+    };
+    cleanQuery = query.replace(/\blast\s+year\b/i, '').trim();
+  }
+  
+  // Check for specific year mention (e.g., "in 2023" or "from 2023")
+  else {
+    const yearMatch = query.match(/\b(in|from|during|for)\s+(\d{4})\b/i);
+    if (yearMatch && yearMatch[2]) {
+      const year = parseInt(yearMatch[2]);
+      if (year >= 2000 && year <= currentYear) {
+        dateRange = {
+          after: `${year}/01/01`,
+          before: `${year + 1}/01/01`
+        };
+        cleanQuery = query.replace(yearMatch[0], '').trim();
+      }
+    }
+  }
+  
+  // Check for specific month mention (e.g., "in January" or "from March")
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const monthPattern = new RegExp(`\\b(in|from|during|for)\\s+(${monthNames.join('|')})\\b`, 'i');
+  const monthMatch = query.match(monthPattern);
+  
+  if (monthMatch && monthMatch[2]) {
+    const monthName = monthMatch[2].toLowerCase();
+    const monthIndex = monthNames.indexOf(monthName);
+    
+    if (monthIndex !== -1) {
+      const month = monthIndex + 1;
+      const monthStr = month < 10 ? `0${month}` : `${month}`;
+      
+      // If year was already set, use that year, otherwise use current year
+      const year = dateRange.after.split('/')[0];
+      
+      dateRange.after = `${year}/${monthStr}/01`;
+      
+      // Set before to the first day of the next month
+      if (month === 12) {
+        dateRange.before = `${parseInt(year) + 1}/01/01`;
+      } else {
+        const nextMonth = month + 1;
+        const nextMonthStr = nextMonth < 10 ? `0${nextMonth}` : `${nextMonth}`;
+        dateRange.before = `${year}/${nextMonthStr}/01`;
+      }
+      
+      cleanQuery = query.replace(monthMatch[0], '').trim();
+    }
+  }
+  
+  return { dateRange, cleanQuery };
+}
+
 // Add this CSS at the top of your file or in a separate CSS module
+
+// Add this helper function to generate unique keys for links
+const generateUniqueLinkKey = (href: string, index: number): string => {
+  if (!href) return `link-${index}`;
+  return `link-${href}-${index}`;
+};
+
+// Add this to track link indices
+let linkCounter = 0;
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -266,6 +359,7 @@ export default function Chat() {
   const [lastSearchQuery, setLastSearchQuery] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailCache, setEmailCache] = useState<EmailCache | null>(null);
+  const [searchDateRange, setSearchDateRange] = useState<any>(null);
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -386,9 +480,22 @@ export default function Chat() {
   // Add this function to check if we should use cached results
   const shouldUseCachedEmails = (
     query: string,
-    cache: EmailCache | null
+    cache: EmailCache | null,
+    currentDateRange: any
   ): boolean => {
     if (!isEmailCacheValid(cache)) return false;
+
+    // If the date ranges are different, don't use cache
+    if (currentDateRange && cache?.dateRange) {
+      const cacheAfter = cache.dateRange.after;
+      const cacheBefore = cache.dateRange.before;
+      const currentAfter = currentDateRange.after;
+      const currentBefore = currentDateRange.before;
+      
+      if (cacheAfter !== currentAfter || cacheBefore !== currentBefore) {
+        return false;
+      }
+    }
 
     // If the new query is a follow-up or related to the cached query
     const isFollowUp =
@@ -431,14 +538,20 @@ export default function Chat() {
       // Check if we should search emails
       const tokens = localStorage.getItem("gmail_tokens");
       if (tokens && shouldSearchEmails(inputMessage)) {
+        // Extract date range from query if present
+        const dateInfo = extractDateRangeFromQuery(inputMessage);
+        const searchQuery = dateInfo ? dateInfo.cleanQuery : inputMessage;
+        const dateRange = dateInfo ? dateInfo.dateRange : null;
+        
         // Check if we can use cached results
-        if (shouldUseCachedEmails(inputMessage, emailCache)) {
+        if (shouldUseCachedEmails(searchQuery, emailCache, dateRange)) {
           console.log("Using cached email results");
           setFoundEmails(emailCache!.emails);
+          setSearchDateRange(emailCache!.dateRange);
           emailContext = emailCache!.emails;
         } else {
           setIsSearchingEmails(true);
-          setLastSearchQuery(inputMessage);
+          setLastSearchQuery(searchQuery);
 
           const gmailResponse = await fetch("/api/gmail/search", {
             method: "POST",
@@ -446,13 +559,16 @@ export default function Chat() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              query: inputMessage,
+              query: searchQuery,
               tokens: JSON.parse(tokens),
+              dateRange: dateRange
             }),
           });
 
           if (gmailResponse.ok) {
             const emailData = await gmailResponse.json();
+            // Store the date range used for the search
+            setSearchDateRange(emailData.dateRange);
             const formattedEmails = emailData.emails.map((email: any) => {
               const decodeHtml = (html: string) => {
                 const txt = document.createElement("textarea");
@@ -467,6 +583,7 @@ export default function Chat() {
                 date: new Date(email.date).toLocaleString(),
                 snippet: decodeHtml(email.snippet || ""),
                 body: decodeHtml(email.body || ""),
+                relevanceScore: email.relevanceScore
               };
             });
 
@@ -475,7 +592,8 @@ export default function Chat() {
               setEmailCache({
                 emails: formattedEmails,
                 lastUpdated: new Date(),
-                searchQuery: inputMessage,
+                searchQuery: searchQuery,
+                dateRange: emailData.dateRange
               });
               setFoundEmails(formattedEmails);
               emailContext = formattedEmails;
@@ -691,92 +809,101 @@ export default function Chat() {
                   </div>
                 </div>
               ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${
-                      message.isUser ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                messages.map((message, index) => {
+                  // Reset link counter for each message
+                  linkCounter = 0;
+                  
+                  return (
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 space-y-4 ${
-                        message.isUser
-                          ? "bg-zinc-800 text-white"
-                          : "bg-zinc-900 text-gray-100"
+                      key={index}
+                      className={`flex ${
+                        message.isUser ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => (
-                            <p className="whitespace-pre-wrap prose prose-invert prose-sm max-w-none">
-                              {children}
-                            </p>
-                          ),
-                          h1: ({ children }) => (
-                            <h1 className="text-xl font-bold mb-2 mt-4">{children}</h1>
-                          ),
-                          h2: ({ children }) => (
-                            <h2 className="text-lg font-semibold mb-2 mt-3">{children}</h2>
-                          ),
-                          h3: ({ children }) => (
-                            <h3 className="text-base font-medium mb-1 mt-2">{children}</h3>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="list-none space-y-1 my-2">{children}</ul>
-                          ),
-                          li: ({ children }) => (
-                            <li className="flex items-start space-x-2">
-                              <span className="mt-1">•</span>
-                              <span>{children}</span>
-                            </li>
-                          ),
-                          hr: () => <hr className="my-3 border-zinc-700" />,
-                          strong: ({ children }) => (
-                            <strong className="font-semibold text-white">{children}</strong>
-                          ),
-                          a: ({ href, children }) => {
-                            if (!href) return null;
-                            // Render the link inline with any text
-                            return (
-                              <span className="inline-flex items-center gap-1">
-                                {children}
-                                <a
-                                  href={getGmailUrl(href)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center hover:bg-zinc-800 rounded transition-colors"
-                                  title="Open in Gmail"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
-                                </a>
-                              </span>
-                            );
-                          },
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-4">
-                              <table className="min-w-full divide-y divide-zinc-700">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-3 py-2 text-left text-sm font-medium text-zinc-300 bg-zinc-800">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-3 py-2 text-sm text-zinc-400 border-t border-zinc-700">
-                              {children}
-                            </td>
-                          ),
-                        }}
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 space-y-4 ${
+                          message.isUser
+                            ? "bg-zinc-800 text-white"
+                            : "bg-zinc-900 text-gray-100"
+                        }`}
                       >
-                        {message.text}
-                      </ReactMarkdown>
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="whitespace-pre-wrap prose prose-invert prose-sm max-w-none">
+                                {children}
+                              </p>
+                            ),
+                            h1: ({ children }) => (
+                              <h1 className="text-xl font-bold mb-2 mt-4">{children}</h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-lg font-semibold mb-2 mt-3">{children}</h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-base font-medium mb-1 mt-2">{children}</h3>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="list-none space-y-1 my-2">{children}</ul>
+                            ),
+                            li: ({ children }) => (
+                              <li className="flex items-start space-x-2">
+                                <span className="mt-1">•</span>
+                                <span>{children}</span>
+                              </li>
+                            ),
+                            hr: () => <hr className="my-3 border-zinc-700" />,
+                            strong: ({ children }) => (
+                              <strong className="font-semibold text-white">{children}</strong>
+                            ),
+                            a: ({ href, children }) => {
+                              if (!href) return null;
+                              
+                              // Generate a unique key for this link
+                              const linkKey = `link-${href}-${linkCounter++}`;
+                              
+                              // Render the link inline with any text
+                              return (
+                                <span key={linkKey} className="inline-flex items-center gap-1">
+                                  {children}
+                                  <a
+                                    href={getGmailUrl(href)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center hover:bg-zinc-800 rounded transition-colors"
+                                    title="Open in Gmail"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+                                  </a>
+                                </span>
+                              );
+                            },
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-4">
+                                <table className="min-w-full divide-y divide-zinc-700">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            th: ({ children }) => (
+                              <th className="px-3 py-2 text-left text-sm font-medium text-zinc-300 bg-zinc-800">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="px-3 py-2 text-sm text-zinc-400 border-t border-zinc-700">
+                                {children}
+                              </td>
+                            ),
+                          }}
+                        >
+                          {message.text}
+                        </ReactMarkdown>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
 
               {/* Email Search Results */}
@@ -786,6 +913,7 @@ export default function Chat() {
                   searchQuery={lastSearchQuery}
                   emails={foundEmails}
                   onEmailClick={handleEmailClick}
+                  dateRange={searchDateRange}
                 />
               )}
 

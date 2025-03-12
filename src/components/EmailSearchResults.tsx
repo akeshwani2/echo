@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronRight, ExternalLink, AlertCircle, Clock } from 'lucide-react';
+import { Search, ChevronRight, ExternalLink, AlertCircle, Clock, Calendar } from 'lucide-react';
 import { Email, EmailSearchResult } from '@/types/email';
 
 // Update the helper function
@@ -10,11 +10,80 @@ const getGmailUrl = (emailId: string): string => {
   return `https://mail.google.com/mail/u/0/#inbox/${cleanId}`;
 };
 
+// Generate a unique key for each email item
+const generateUniqueKey = (email: Email, index: number): string => {
+  // Always include the index to ensure uniqueness
+  const baseKey = `email-${index}`;
+  
+  // Use the email ID if it exists and is not empty
+  if (email.id && email.id.trim() !== '') {
+    return `${baseKey}-${email.id}`;
+  }
+  
+  // Fallback to a combination of from, subject, and date
+  const fromHash = email.from ? email.from.slice(0, 10).replace(/\s+/g, '') : 'unknown';
+  const subjectHash = email.subject ? email.subject.slice(0, 10).replace(/\s+/g, '') : 'nosubject';
+  const dateHash = email.date ? new Date(email.date).getTime().toString().slice(-6) : Date.now().toString().slice(-6);
+  
+  return `${baseKey}-${fromHash}-${subjectHash}-${dateHash}`;
+};
+
+// Format date for display
+const formatDateRange = (dateRange: any) => {
+  if (!dateRange) return 'All time';
+  
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return dateStr;
+    
+    const year = parts[0];
+    const month = parseInt(parts[1]);
+    const day = parseInt(parts[2]);
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[month-1]} ${day}, ${year}`;
+  };
+  
+  // Check if it's a full year
+  if (dateRange.after?.endsWith('/01/01') && dateRange.before?.endsWith('/01/01')) {
+    const afterYear = dateRange.after.split('/')[0];
+    const beforeYear = dateRange.before.split('/')[0];
+    
+    if (parseInt(beforeYear) - parseInt(afterYear) === 1) {
+      return afterYear; // Just show the year
+    }
+  }
+  
+  // Check if it's a specific month
+  if (dateRange.after && dateRange.before) {
+    const afterParts = dateRange.after.split('/');
+    const beforeParts = dateRange.before.split('/');
+    
+    if (afterParts.length === 3 && beforeParts.length === 3) {
+      const afterYear = afterParts[0];
+      const afterMonth = parseInt(afterParts[1]);
+      const beforeYear = beforeParts[0];
+      const beforeMonth = parseInt(beforeParts[1]);
+      
+      if (afterYear === beforeYear && beforeMonth - afterMonth === 1 && afterParts[2] === '01' && beforeParts[2] === '01') {
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${monthNames[afterMonth-1]} ${afterYear}`;
+      }
+    }
+  }
+  
+  // Default: show date range
+  return `${formatDate(dateRange.after)} - ${formatDate(dateRange.before)}`;
+};
+
 export default function EmailSearchResults({
   isSearching,
   searchQuery,
   emails,
   onEmailClick,
+  dateRange
 }: EmailSearchResult) {
   // Don't render anything if not searching and no emails found
   if (!isSearching && emails.length === 0) {
@@ -51,19 +120,29 @@ export default function EmailSearchResults({
           className="overflow-hidden border border-white/50 rounded-2xl"
         >
           {/* Header */}
-          <div className="p-3 flex items-center gap-2 text-sm">
-            <Search className="w-4 h-4" />
-            <span className="text-white/90">
-              {highlyRelevantEmails.length > 0 
-                ? `Found ${highlyRelevantEmails.length} highly relevant emails` 
-                : relevantEmails.length > 0
-                  ? `Found ${relevantEmails.length} relevant emails`
-                  : `Showing ${emails.length} recent emails`
-              }
-              {highlyRelevantEmails.length > 0 && recentEmails.length > 0 && 
-                ` and ${recentEmails.length} other recent emails`
-              }
-            </span>
+          <div className="p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-sm">
+              <Search className="w-4 h-4" />
+              <span className="text-white/90">
+                {highlyRelevantEmails.length > 0 
+                  ? `Found ${highlyRelevantEmails.length} highly relevant emails` 
+                  : relevantEmails.length > 0
+                    ? `Found ${relevantEmails.length} relevant emails`
+                    : `Showing ${emails.length} recent emails`
+                }
+                {highlyRelevantEmails.length > 0 && recentEmails.length > 0 && 
+                  ` and ${recentEmails.length} other recent emails`
+                }
+              </span>
+            </div>
+            
+            {/* Date Range Indicator */}
+            {dateRange && (
+              <div className="flex items-center gap-1 text-xs text-zinc-400">
+                <Calendar className="w-3 h-3" />
+                <span>Time period: {formatDateRange(dateRange)}</span>
+              </div>
+            )}
           </div>
 
           {/* Scrollable Email List */}
@@ -78,13 +157,13 @@ export default function EmailSearchResults({
               )}
               
               {/* Render relevant emails first */}
-              {relevantEmails.map((email) => {
+              {relevantEmails.map((email, index) => {
                 const relevanceScore = (email as any).relevanceScore || 0;
                 const isHighlyRelevant = relevanceScore > 50;
                 
                 return (
                   <motion.div
-                    key={email.id}
+                    key={generateUniqueKey(email, index)}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -135,9 +214,9 @@ export default function EmailSearchResults({
               )}
               
               {/* Render recent emails */}
-              {recentEmails.map((email) => (
+              {recentEmails.map((email, index) => (
                 <motion.div
-                  key={email.id}
+                  key={generateUniqueKey(email, index + relevantEmails.length)} // Add offset to ensure uniqueness
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
