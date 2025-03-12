@@ -70,6 +70,28 @@ function calculateRelevanceScore(query: string, email: any): number {
     score += 100;
   }
   
+  // Check if query is specifically about a sender/person
+  const personQueryIndicators = ['from', 'sent by', 'email from', 'emails from', 'messages from', 'by'];
+  let isPersonQuery = false;
+  
+  // Check if query is asking about emails from a specific person
+  for (const indicator of personQueryIndicators) {
+    if (query.toLowerCase().includes(indicator)) {
+      isPersonQuery = true;
+      break;
+    }
+  }
+  
+  // If this is a query about a specific sender and the sender matches, give it a high score
+  if (isPersonQuery) {
+    for (const term of queryTerms) {
+      if (from.includes(term) && term.length > 3) {
+        // This is likely the person's name in the query
+        score += 80; // High score for sender match in a sender-specific query
+      }
+    }
+  }
+  
   // Check for individual term matches
   for (const term of queryTerms) {
     // Subject matches are highly relevant
@@ -89,7 +111,7 @@ function calculateRelevanceScore(query: string, email: any): number {
     
     // From matches can be relevant
     if (from.includes(term)) {
-      score += 3;
+      score += 15; // Increased from 3 to 15 to give more weight to sender matches
     }
   }
   
