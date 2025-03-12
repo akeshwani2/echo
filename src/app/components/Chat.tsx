@@ -8,6 +8,13 @@ import {
   ArrowLeftRight,
   User,
   ExternalLink,
+  Search,
+  Users,
+  ShoppingBag,
+  AlertCircle,
+  CheckSquare,
+  Inbox,
+  Clock,
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
@@ -16,6 +23,8 @@ import { Email } from "@/types/email";
 import EmailPreview from "@/components/EmailPreview";
 import { AnimatePresence } from "framer-motion";
 import { Components } from 'react-markdown';
+import EmailSummaryDashboard from "../../components/EmailSummaryDashboard";
+import { motion } from "framer-motion";
 
 interface Message {
   text: string;
@@ -783,32 +792,62 @@ export default function Chat() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-container">
-              {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center">
-                  <p className="text-3xl mb-6 text-center flex flex-col items-center justify-center tracking-tight">
-                    How can I help you today?
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 max-w-3xl w-full px-4">
-                    {SUGGESTED_ACTIONS.map((action, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSuggestionClick(action.prompt)}
-                        className="bg-zinc-900/50 hover:bg-zinc-800/50 transition-all p-3 rounded-xl text-left group flex flex-col backdrop-blur-sm ring-1 ring-white/40 hover:ring-white/80"
-                      >
-                        <div className="flex items-center gap-2">
-                          {action.icon}
-                          <h4 className="text-white/90 font-medium">
-                            {action.title}
-                          </h4>
-                        </div>
-                        <p className="text-zinc-500/90 text-xs mt-1 italic">
-                          "{action.prompt}"
-                        </p>
-                      </button>
-                    ))}
-                  </div>
+              {messages.length === 0 && !isLoading && (
+                <div className="flex items-center justify-center h-full text-center px-4">
+                  
+                  {/* Quick action buttons */}
+                  {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mb-12">
+                    <button
+                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
+                      onClick={() => setInputMessage("Find my recent emails about project updates")}
+                    >
+                      <Search className="w-5 h-5 text-zinc-400" />
+                      <div>
+                        <div className="font-medium text-white">Search Emails</div>
+                        <div className="text-sm text-zinc-500">"Find my recent emails about project updates"</div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
+                      onClick={() => setInputMessage("Summarize my meeting emails from last week")}
+                    >
+                      <Users className="w-5 h-5 text-zinc-400" />
+                      <div>
+                        <div className="font-medium text-white">Summarize Meetings</div>
+                        <div className="text-sm text-zinc-500">"Summarize my meeting emails from last week"</div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
+                      onClick={() => setInputMessage("Find my recent order confirmations")}
+                    >
+                      <ShoppingBag className="w-5 h-5 text-zinc-400" />
+                      <div>
+                        <div className="font-medium text-white">Track Orders</div>
+                        <div className="text-sm text-zinc-500">"Find my recent order confirmations"</div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
+                      onClick={() => setInputMessage("Show my upcoming travel itineraries")}
+                    >
+                      <Plane className="w-5 h-5 text-zinc-400" />
+                      <div>
+                        <div className="font-medium text-white">Travel Plans</div>
+                        <div className="text-sm text-zinc-500">"Show my upcoming travel itineraries"</div>
+                      </div>
+                    </button>
+                  </div> */}
+                  
+                  {/* Email Summary Dashboard */}
+                  <EmailSummaryDashboard tokens={gmailTokens ? JSON.stringify(gmailTokens) : null} />
                 </div>
-              ) : (
+              )}
+
+              {messages.length > 0 && (
                 messages.map((message, index) => {
                   // Reset link counter for each message
                   linkCounter = 0;
