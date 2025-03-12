@@ -25,7 +25,10 @@ const generateUniqueKey = (email: Email, index: number): string => {
   const subjectHash = email.subject ? email.subject.slice(0, 10).replace(/\s+/g, '') : 'nosubject';
   const dateHash = email.date ? new Date(email.date).getTime().toString().slice(-6) : Date.now().toString().slice(-6);
   
-  return `${baseKey}-${fromHash}-${subjectHash}-${dateHash}`;
+  // Add a random component to ensure uniqueness even with identical data
+  const randomComponent = Math.random().toString(36).substring(2, 8);
+  
+  return `${baseKey}-${fromHash}-${subjectHash}-${dateHash}-${randomComponent}`;
 };
 
 // Format date for display
@@ -150,7 +153,7 @@ export default function EmailSearchResults({
             <AnimatePresence>
               {/* Show section header if we have both relevant and recent emails */}
               {relevantEmails.length > 0 && recentEmails.length > 0 && (
-                <div className="text-xs text-zinc-400 font-medium mb-2 flex items-center gap-1">
+                <div key="relevant-header" className="text-xs text-zinc-400 font-medium mb-2 flex items-center gap-1">
                   <Search className="w-3 h-3" />
                   <span>RELEVANT TO YOUR QUERY</span>
                 </div>
@@ -207,7 +210,7 @@ export default function EmailSearchResults({
               
               {/* Show section header for recent emails if we have both types */}
               {relevantEmails.length > 0 && recentEmails.length > 0 && (
-                <div className="text-xs text-zinc-400 font-medium mt-4 mb-2 flex items-center gap-1">
+                <div key="recent-header" className="text-xs text-zinc-400 font-medium mt-4 mb-2 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   <span>RECENT EMAILS</span>
                 </div>
