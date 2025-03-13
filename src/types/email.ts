@@ -12,6 +12,8 @@ export interface Email {
   hasAttachments: boolean;
   labels: string[];
   relevanceScore?: number;
+  aiSummary?: string;  // AI-generated summary
+  isSummaryLoading?: boolean;  // Flag to indicate if summary is being generated
 }
 
 export interface EmailSearchResult {

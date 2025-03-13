@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Calendar, CheckSquare, Clock, ExternalLink, Inbox, Mail } from 'lucide-react';
 import { Email } from '@/types/email';
+import { useUser } from "@clerk/nextjs";
 
 interface EmailSummaryDashboardProps {
   tokens: string | null;
@@ -21,12 +22,56 @@ const getGmailUrl = (emailId: string): string => {
 };
 
 export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardProps) {
+  const { isSignedIn, user } = useUser();
   const [summary, setSummary] = useState<EmailSummary>({
     immediateAction: [],
     mediumPriority: [],
     other: [],
     isLoading: false
   });
+
+  // Function to generate AI summary for an email
+  const generateAISummary = async (email: Email): Promise<string> => {
+    try {
+      const response = await fetch('/api/gmail/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate summary');
+      }
+      
+      const data = await response.json();
+      return data.summary || email.subject;
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      return email.subject; // Fallback to subject if summary generation fails
+    }
+  };
+
+  // Function to generate summaries for a batch of emails
+  const generateSummariesForEmails = async (emails: Email[]): Promise<Email[]> => {
+    return Promise.all(
+      emails.map(async (email) => {
+        const emailWithLoading = {
+          ...email,
+          isSummaryLoading: true
+        };
+        
+        const aiSummary = await generateAISummary(emailWithLoading);
+        
+        return {
+          ...emailWithLoading,
+          aiSummary,
+          isSummaryLoading: false
+        };
+      })
+    );
+  };
 
   useEffect(() => {
     const fetchEmailSummary = async () => {
@@ -88,10 +133,15 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
           .filter(email => !immediateActionIds.has(email.id) && !mediumPriorityIds.has(email.id))
           .slice(0, 3);
         
+        // Generate AI summaries for all emails
+        const immediateActionWithSummaries = await generateSummariesForEmails(immediateActionEmails);
+        const mediumPriorityWithSummaries = await generateSummariesForEmails(mediumPriorityEmails);
+        const otherWithSummaries = await generateSummariesForEmails(otherEmails);
+        
         setSummary({
-          immediateAction: immediateActionEmails,
-          mediumPriority: mediumPriorityEmails,
-          other: otherEmails,
+          immediateAction: immediateActionWithSummaries,
+          mediumPriority: mediumPriorityWithSummaries,
+          other: otherWithSummaries,
           isLoading: false
         });
       } catch (error) {
@@ -181,35 +231,60 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-4xl"
+      className="w-full max-w-6xl mx-auto"
     >
-      <h3 className="text-xl tracking-tight text-zinc-400 mb-4 text-center">Your Email Summary</h3>
+      <h3 className="text-2xl tracking-tight text-zinc-400 mb-6 text-center">
+        <span className="text-white">
+          {isSignedIn ? (
+            `Hello, ${
+              user?.username || user?.firstName
+                ? user?.username || user?.firstName
+                : "there"
+            }!`
+          ) : (
+            <>Your Email Summary</>
+          )}
+        </span>
+      </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
         {/* Immediate Action Emails */}
         {summary.immediateAction.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-4 border border-zinc-800">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+            <div className="flex items-center gap-2 mb-4">
               <AlertCircle className="w-5 h-5 text-red-400" />
-              <h4 className="text-lg text-white tracking-tight">Immediate Action</h4>
+              <h4 className="text-lg text-white tracking-tight font-medium">Immediate Action</h4>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {summary.immediateAction.map((email) => (
                 <a 
                   key={email.id} 
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors"
+                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm font-medium text-white line-clamp-1">{email.subject}</div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1" />
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
+                      {email.isSummaryLoading ? (
+                        <span className="inline-flex items-center">
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          {email.subject}
+                        </span>
+                      ) : (
+                        <span className="text-blue-300">{email.aiSummary || email.subject}</span>
+                      )}
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1">{email.from}</div>
-                  <div className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {email.date}
+                  <div className="flex flex-col space-y-1.5">
+                    <div className="text-xs text-zinc-300">
+                      {email.from}
+                    </div>
+                    <div className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {email.date}
+                    </div>
                   </div>
                 </a>
               ))}
@@ -219,28 +294,41 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         
         {/* Medium Priority */}
         {summary.mediumPriority.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-4 border border-zinc-800">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+            <div className="flex items-center gap-2 mb-4">
               <CheckSquare className="w-5 h-5 text-yellow-400" />
               <h4 className="text-lg font-medium text-white">Medium Priority</h4>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {summary.mediumPriority.map((email) => (
                 <a 
                   key={email.id} 
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors"
+                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm font-medium text-white line-clamp-1">{email.subject}</div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1" />
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
+                      {email.isSummaryLoading ? (
+                        <span className="inline-flex items-center">
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          {email.subject}
+                        </span>
+                      ) : (
+                        <span className="text-yellow-200">{email.aiSummary || email.subject}</span>
+                      )}
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1">{email.from}</div>
-                  <div className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {email.date}
+                  <div className="flex flex-col space-y-1.5">
+                    <div className="text-xs text-zinc-300">
+                      {email.from}
+                    </div>
+                    <div className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {email.date}
+                    </div>
                   </div>
                 </a>
               ))}
@@ -250,28 +338,41 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         
         {/* Other Emails */}
         {summary.other.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-4 border border-zinc-800">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+            <div className="flex items-center gap-2 mb-4">
               <Inbox className="w-5 h-5 text-green-400" />
               <h4 className="text-lg font-medium text-white">Other</h4>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {summary.other.map((email) => (
                 <a 
                   key={email.id} 
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors"
+                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm font-medium text-white line-clamp-1">{email.subject}</div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1" />
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
+                      {email.isSummaryLoading ? (
+                        <span className="inline-flex items-center">
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          {email.subject}
+                        </span>
+                      ) : (
+                        <span className="text-green-200">{email.aiSummary || email.subject}</span>
+                      )}
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1">{email.from}</div>
-                  <div className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {email.date}
+                  <div className="flex flex-col space-y-1.5">
+                    <div className="text-xs text-zinc-300">
+                      {email.from}
+                    </div>
+                    <div className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {email.date}
+                    </div>
                   </div>
                 </a>
               ))}
