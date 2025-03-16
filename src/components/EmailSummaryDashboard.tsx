@@ -21,6 +21,26 @@ const getGmailUrl = (emailId: string): string => {
   return `https://mail.google.com/mail/u/0/#inbox/${cleanId}`;
 };
 
+// Add this function to check if calendar access is available
+const hasCalendarAccess = (tokens: any): boolean => {
+  if (!tokens) return false;
+  
+  // Check if the token's scope includes calendar access
+  const scope = tokens.scope || '';
+  return scope.includes('https://www.googleapis.com/auth/calendar.readonly');
+};
+
+// Add this function to handle reconnecting Gmail with calendar permissions
+const handleReconnectGmail = async () => {
+  try {
+    const response = await fetch('/api/gmail/auth');
+    const { url } = await response.json();
+    window.location.href = url;
+  } catch (error) {
+    console.error('Failed to get auth URL:', error);
+  }
+};
+
 export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardProps) {
   const { isSignedIn, user } = useUser();
   const [summary, setSummary] = useState<EmailSummary>({
@@ -29,6 +49,19 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
     other: [],
     isLoading: false
   });
+  
+  const [parsedTokens, setParsedTokens] = useState<any>(null);
+  
+  useEffect(() => {
+    if (tokens) {
+      try {
+        const parsed = JSON.parse(tokens);
+        setParsedTokens(parsed);
+      } catch (e) {
+        console.error('Failed to parse tokens:', e);
+      }
+    }
+  }, [tokens]);
 
   // Function to generate AI summary for an email
   const generateAISummary = async (email: Email): Promise<string> => {
@@ -246,6 +279,29 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
           )}
         </span>
       </h3>
+      
+      {/* Calendar Access Section */}
+      {parsedTokens && !hasCalendarAccess(parsedTokens) && (
+        <div className="mb-6 bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5 text-blue-400" />
+            <h4 className="text-lg font-medium text-white">Calendar Access</h4>
+          </div>
+          <div className="flex flex-col space-y-4">
+            <p className="text-zinc-400 text-sm">
+              To enable calendar-related features like checking your schedule, please reconnect your Gmail account with calendar permissions.
+            </p>
+            <div>
+              <button
+                onClick={handleReconnectGmail}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors"
+              >
+                Connect Calendar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
         {/* Immediate Action Emails */}

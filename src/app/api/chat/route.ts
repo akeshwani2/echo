@@ -40,7 +40,7 @@ const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
-    const { messages, temperature, systemPrompt, apiKey, maxTokens, model: initialModel, emailData } = await req.json();
+    const { messages, temperature, systemPrompt, apiKey, maxTokens, model: initialModel, emailData, calendarData } = await req.json();
     let model = initialModel;
     const { userId } = await auth();
     
@@ -151,6 +151,7 @@ ${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
             content: m.text
           })),
           emailContext: emailData ? `Available Email Data:\n${JSON.stringify(emailData, null, 2)}` : 'No email data available.',
+          calendarContext: calendarData ? `Available Calendar Data:\n${JSON.stringify(calendarData, null, 2)}` : 'No calendar data available.',
           memories: memoryContext
         };
 
@@ -158,6 +159,7 @@ ${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
           `Current Query: ${context.userQuery}\n\n` +
           `Recent Conversation:\n${context.conversationHistory.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}\n\n` +
           `Email Context:\n${context.emailContext}\n\n` +
+          `Calendar Context:\n${context.calendarContext}\n\n` +
           `Previous Context:\n${context.memories}`
         );
         const content = result.response.text();
@@ -276,67 +278,76 @@ ${systemPrompt} ${MEMORY_INSTRUCTIONS}` }],
           throw error;
         }
       }
-    }
+    } else {
+      // OpenAI models
+      const emailContext = emailData 
+        ? `\n\nEmail Context:\n${JSON.stringify(emailData, null, 2)}`
+        : '';
+      
+      const calendarContext = calendarData 
+        ? `\n\nCalendar Context:\n${JSON.stringify(calendarData, null, 2)}`
+        : '';
 
-    const response = await openai.chat.completions.create({
-      model: model || "gpt-4o-mini",
-      messages: [
-        { 
-          role: "system", 
-          content: systemPrompt + MEMORY_INSTRUCTIONS + memoryContext
-        },
-        ...messages.map((msg: ChatMessage) => ({
-          role: msg.isUser ? "user" : "assistant",
-          content: msg.text
-        }))
-      ],
-      temperature: temperature || 0.7,
-      max_tokens: maxTokens || 256,
-    });
-
-    const content = response.choices[0].message.content;
-    const newMemories = content?.match(/<memory>(.*?)<\/memory>/g)?.map(m => 
-      m.replace(/<\/?memory>/g, '').trim()
-    ) || [];
-
-    // Filter out duplicates and store only new memories
-    if (newMemories.length > 0) {
-      const uniqueNewMemories = newMemories.filter(
-        memory => isUniqueMemory(memory, mergedMemories)
-      );
-
-      if (uniqueNewMemories.length > 0) {
-        await prisma.memory.createMany({
-          data: uniqueNewMemories.map(text => ({
-            text,
-            timestamp: new Date(),
-            userId
+      const response = await openai.chat.completions.create({
+        model: model || "gpt-4o-mini",
+        messages: [
+          { 
+            role: "system", 
+            content: systemPrompt + MEMORY_INSTRUCTIONS + memoryContext + emailContext + calendarContext
+          },
+          ...messages.map((msg: ChatMessage) => ({
+            role: msg.isUser ? "user" : "assistant",
+            content: msg.text
           }))
-        });
-      }
-    }
+        ],
+        temperature: temperature || 0.7,
+        max_tokens: maxTokens || 256,
+      });
 
-    // Clean the response text and store AI message
-    const cleanedText = content?.replace(/<memory>.*?<\/memory>/g, '').trim() || '';
-    const aiMessage = await prisma.message.create({
-      data: {
+      const content = response.choices[0].message.content;
+      const newMemories = content?.match(/<memory>(.*?)<\/memory>/g)?.map(m => 
+        m.replace(/<\/?memory>/g, '').trim()
+      ) || [];
+
+      // Filter out duplicates and store only new memories
+      if (newMemories.length > 0) {
+        const uniqueNewMemories = newMemories.filter(
+          memory => isUniqueMemory(memory, mergedMemories)
+        );
+
+        if (uniqueNewMemories.length > 0) {
+          await prisma.memory.createMany({
+            data: uniqueNewMemories.map(text => ({
+              text,
+              timestamp: new Date(),
+              userId
+            }))
+          });
+        }
+      }
+
+      // Clean the response text and store AI message
+      const cleanedText = content?.replace(/<memory>.*?<\/memory>/g, '').trim() || '';
+      const aiMessage = await prisma.message.create({
+        data: {
+          text: cleanedText,
+          isUser: false,
+          timestamp: new Date(),
+          chatId: chat.id
+        }
+      });
+
+      const rateLimiter = RateLimiter.getInstance();
+      const remainingRequests = rateLimiter.getRemainingRequests(userId);
+
+      return NextResponse.json({
         text: cleanedText,
         isUser: false,
-        timestamp: new Date(),
-        chatId: chat.id
-      }
-    });
-
-    const rateLimiter = RateLimiter.getInstance();
-    const remainingRequests = rateLimiter.getRemainingRequests(userId);
-
-    return NextResponse.json({
-      text: cleanedText,
-      isUser: false,
-      timestamp: aiMessage.timestamp,
-      memories: newMemories,
-      remainingRequests,
-    });
+        timestamp: aiMessage.timestamp,
+        memories: newMemories,
+        remainingRequests,
+      });
+    }
   
   } catch (error) {
     console.error('API Error:', error);

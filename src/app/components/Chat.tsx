@@ -80,6 +80,20 @@ interface SuggestedAction {
   prompt: string;
 }
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  start: string;
+  end: string;
+  startTime: string;
+  date: string;
+  attendees: any[];
+  organizer: any;
+  link: string;
+}
+
 const getGmailUrl = (emailId: string): string => {
   // Remove any special characters and get just the message ID
   const cleanId = emailId.replace(/[<>]/g, '');
@@ -333,6 +347,86 @@ const generateUniqueLinkKey = (href: string, index: number): string => {
 // Add this to track link indices
 let linkCounter = 0;
 
+// Add this function to detect calendar-related queries
+const shouldFetchCalendar = (query: string): boolean => {
+  const calendarKeywords = [
+    'schedule',
+    'calendar',
+    'event',
+    'meeting',
+    'appointment',
+    'agenda',
+    'what do i have',
+    'what\'s on my calendar',
+    'what is on my calendar',
+    'what am i doing',
+    'what\'s happening',
+    'what is happening'
+  ];
+  
+  const timeKeywords = [
+    'today',
+    'tomorrow',
+    'this week',
+    'next week',
+    'this month',
+    'upcoming'
+  ];
+  
+  // Check if the query contains calendar-related keywords
+  const hasCalendarKeyword = calendarKeywords.some(keyword => 
+    query.toLowerCase().includes(keyword.toLowerCase())
+  );
+  
+  // Check if the query contains time-related keywords
+  const hasTimeKeyword = timeKeywords.some(keyword => 
+    query.toLowerCase().includes(keyword.toLowerCase())
+  );
+  
+  // Return true if the query contains both calendar and time keywords
+  return hasCalendarKeyword && hasTimeKeyword;
+};
+
+// Add this function to determine the time range for calendar queries
+const getCalendarTimeRange = (query: string): string => {
+  const query_lower = query.toLowerCase();
+  
+  if (query_lower.includes('today')) {
+    return 'today';
+  } else if (query_lower.includes('tomorrow')) {
+    return 'tomorrow';
+  } else if (query_lower.includes('this week') || query_lower.includes('upcoming')) {
+    return 'week';
+  } else if (query_lower.includes('next week')) {
+    return 'nextWeek';
+  } else if (query_lower.includes('this month')) {
+    return 'month';
+  } else {
+    // Default to week if no specific time range is mentioned
+    return 'week';
+  }
+};
+
+// Add this function to check if calendar access is available
+const hasCalendarAccess = (tokens: any): boolean => {
+  if (!tokens) return false;
+  
+  // Check if the token's scope includes calendar access
+  const scope = tokens.scope || '';
+  return scope.includes('https://www.googleapis.com/auth/calendar.readonly');
+};
+
+// Add this function to handle reconnecting Gmail with calendar permissions
+const handleReconnectGmail = async () => {
+  try {
+    const response = await fetch('/api/gmail/auth');
+    const { url } = await response.json();
+    window.location.href = url;
+  } catch (error) {
+    console.error('Failed to get auth URL:', error);
+  }
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -530,6 +624,22 @@ export default function Chat() {
       return;
     }
 
+    // Check if this is a calendar query but we don't have calendar access
+    if (shouldFetchCalendar(inputMessage) && gmailTokens && !hasCalendarAccess(gmailTokens)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: inputMessage,
+          isUser: true,
+        },
+        {
+          text: "I need access to your Google Calendar to answer this question. Please reconnect your Gmail account with calendar permissions.",
+          isUser: false,
+        }
+      ]);
+      return;
+    }
+
     const newMessage: Message = {
       text: inputMessage,
       isUser: true,
@@ -543,76 +653,119 @@ export default function Chat() {
 
     try {
       let emailContext = null;
+      let calendarContext = null;
 
       // Check if we should search emails
       const tokens = localStorage.getItem("gmail_tokens");
-      if (tokens && shouldSearchEmails(inputMessage)) {
-        // Extract date range from query if present
-        const dateInfo = extractDateRangeFromQuery(inputMessage);
-        const searchQuery = dateInfo ? dateInfo.cleanQuery : inputMessage;
-        const dateRange = dateInfo ? dateInfo.dateRange : null;
-        
-        // Check if we can use cached results
-        if (shouldUseCachedEmails(searchQuery, emailCache, dateRange)) {
-          console.log("Using cached email results");
-          setFoundEmails(emailCache!.emails);
-          setSearchDateRange(emailCache!.dateRange);
-          emailContext = emailCache!.emails;
-        } else {
-          setIsSearchingEmails(true);
-          setLastSearchQuery(searchQuery);
-
-          const gmailResponse = await fetch("/api/gmail/search", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              query: searchQuery,
-              tokens: JSON.parse(tokens),
-              dateRange: dateRange
-            }),
-          });
-
-          if (gmailResponse.ok) {
-            const emailData = await gmailResponse.json();
-            // Store the date range used for the search
-            setSearchDateRange(emailData.dateRange);
-            const formattedEmails = emailData.emails.map((email: any) => {
-              const decodeHtml = (html: string) => {
-                const txt = document.createElement("textarea");
-                txt.innerHTML = html;
-                return txt.value;
-              };
-
-              return {
-                id: email.id,
-                from: email.from?.split("<")[0]?.trim() || email.from,
-                subject: decodeHtml(email.subject || ""),
-                date: new Date(email.date).toLocaleString(),
-                snippet: decodeHtml(email.snippet || ""),
-                body: decodeHtml(email.body || ""),
-                relevanceScore: email.relevanceScore
-              };
+      if (tokens) {
+        // Check for calendar-related queries
+        if (shouldFetchCalendar(inputMessage)) {
+          try {
+            const timeRange = getCalendarTimeRange(inputMessage);
+            const calendarResponse = await fetch("/api/calendar/events", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                tokens: JSON.parse(tokens),
+                timeRange: timeRange,
+              }),
             });
 
-            if (formattedEmails.length > 0) {
-              // Update cache with new results
-              setEmailCache({
-                emails: formattedEmails,
-                lastUpdated: new Date(),
-                searchQuery: searchQuery,
-                dateRange: emailData.dateRange
-              });
-              setFoundEmails(formattedEmails);
-              emailContext = formattedEmails;
+            if (calendarResponse.ok) {
+              const calendarData = await calendarResponse.json();
+              calendarContext = calendarData.events;
+            } else {
+              const errorData = await calendarResponse.json();
+              
+              // If we need to reconnect for calendar access
+              if (calendarResponse.status === 403 && errorData.needsReconnect) {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    text: "I need access to your Google Calendar to answer this question. Please reconnect your Gmail account with calendar permissions using the button above.",
+                    isUser: false,
+                  }
+                ]);
+                setIsLoading(false);
+                return;
+              }
             }
+          } catch (error) {
+            console.error("Error fetching calendar events:", error);
           }
-          setIsSearchingEmails(false);
+        }
+
+        // Existing email search logic
+        if (shouldSearchEmails(inputMessage)) {
+          // Extract date range from query if present
+          const dateInfo = extractDateRangeFromQuery(inputMessage);
+          const searchQuery = dateInfo ? dateInfo.cleanQuery : inputMessage;
+          const dateRange = dateInfo ? dateInfo.dateRange : null;
+          
+          // Check if we can use cached results
+          if (shouldUseCachedEmails(searchQuery, emailCache, dateRange)) {
+            console.log("Using cached email results");
+            setFoundEmails(emailCache!.emails);
+            setSearchDateRange(emailCache!.dateRange);
+            emailContext = emailCache!.emails;
+          } else {
+            setIsSearchingEmails(true);
+            setLastSearchQuery(searchQuery);
+
+            const gmailResponse = await fetch("/api/gmail/search", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                query: searchQuery,
+                tokens: JSON.parse(tokens),
+                dateRange: dateRange
+              }),
+            });
+
+            if (gmailResponse.ok) {
+              const emailData = await gmailResponse.json();
+              // Store the date range used for the search
+              setSearchDateRange(emailData.dateRange);
+              const formattedEmails = emailData.emails.map((email: any) => {
+                const decodeHtml = (html: string) => {
+                  const txt = document.createElement("textarea");
+                  txt.innerHTML = html;
+                  return txt.value;
+                };
+
+                return {
+                  id: email.id,
+                  from: email.from?.split("<")[0]?.trim() || email.from,
+                  subject: decodeHtml(email.subject || ""),
+                  date: new Date(email.date).toLocaleString(),
+                  snippet: decodeHtml(email.snippet || ""),
+                  body: decodeHtml(email.body || ""),
+                  relevanceScore: email.relevanceScore
+                };
+              });
+
+              if (formattedEmails.length > 0) {
+                // Update cache with new results
+                setEmailCache({
+                  emails: formattedEmails,
+                  lastUpdated: new Date(),
+                  searchQuery: searchQuery,
+                  dateRange: emailData.dateRange
+                });
+                setFoundEmails(formattedEmails);
+                emailContext = formattedEmails;
+              }
+            }
+            setIsSearchingEmails(false);
+          }
         }
       }
 
-      // Make the chat API call with both user message and email context
+      // Make the chat API call with user message, email context, and calendar context
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -624,6 +777,7 @@ export default function Chat() {
             isUser: msg.isUser,
           })),
           emailData: emailContext, // Pass emails as separate data
+          calendarData: calendarContext, // Pass calendar events as separate data
           model,
           temperature,
           systemPrompt,
@@ -791,6 +945,20 @@ export default function Chat() {
                 Clear All Messages
               </button>
             </div>
+            
+            {/* Calendar access warning */}
+            {isGmailConnected && gmailTokens && !hasCalendarAccess(gmailTokens) && (
+              <div className="bg-yellow-600/20 text-yellow-200 px-4 py-2 text-sm flex items-center justify-between">
+                <span>Calendar access is required for schedule-related queries.</span>
+                <button 
+                  onClick={handleReconnectGmail}
+                  className="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-500 transition-colors"
+                >
+                  Reconnect Gmail
+                </button>
+              </div>
+            )}
+            
             <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-container">
               {messages.length === 0 && !isLoading && (
                 <div className="flex items-center justify-center h-full text-center px-4">
