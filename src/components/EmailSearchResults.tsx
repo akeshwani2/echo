@@ -88,6 +88,9 @@ export default function EmailSearchResults({
   onEmailClick,
   dateRange
 }: EmailSearchResult) {
+  // Add state to control visibility of recent emails
+  const [showRecentEmails, setShowRecentEmails] = React.useState(false);
+  
   // Don't render anything if not searching and no emails found
   if (!isSearching && emails.length === 0) {
     return null;
@@ -124,19 +127,28 @@ export default function EmailSearchResults({
         >
           {/* Header */}
           <div className="p-3 flex flex-col gap-1">
-            <div className="flex items-center gap-2 text-sm">
-              <Search className="w-4 h-4" />
-              <span className="text-white/90">
-                {highlyRelevantEmails.length > 0 
-                  ? `Found ${highlyRelevantEmails.length} highly relevant emails` 
-                  : relevantEmails.length > 0
-                    ? `Found ${relevantEmails.length} relevant emails`
-                    : `Showing ${emails.length} recent emails`
-                }
-                {highlyRelevantEmails.length > 0 && recentEmails.length > 0 && 
-                  ` and ${recentEmails.length} other recent emails`
-                }
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <Search className="w-4 h-4" />
+                <span className="text-white/90">
+                  {highlyRelevantEmails.length > 0 
+                    ? `Found ${highlyRelevantEmails.length} highly relevant emails` 
+                    : relevantEmails.length > 0
+                      ? `Found ${relevantEmails.length} relevant emails`
+                      : `Showing ${emails.length} recent emails`
+                  }
+                </span>
+              </div>
+              
+              {/* Only show toggle if there are both relevant and recent emails */}
+              {relevantEmails.length > 0 && recentEmails.length > 0 && (
+                <button 
+                  onClick={() => setShowRecentEmails(!showRecentEmails)}
+                  className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                >
+                  {showRecentEmails ? 'Hide recent' : `Show ${recentEmails.length} more`}
+                </button>
+              )}
             </div>
             
             {/* Date Range Indicator */}
@@ -151,8 +163,8 @@ export default function EmailSearchResults({
           {/* Scrollable Email List */}
           <div className="max-h-[240px] overflow-y-auto space-y-2 px-4 pb-4 pt-4">
             <AnimatePresence>
-              {/* Show section header if we have both relevant and recent emails */}
-              {relevantEmails.length > 0 && recentEmails.length > 0 && (
+              {/* Show section header if we have both relevant and recent emails AND showRecent is true */}
+              {relevantEmails.length > 0 && recentEmails.length > 0 && showRecentEmails && (
                 <div key="relevant-header" className="text-xs text-zinc-400 font-medium mb-2 flex items-center gap-1">
                   <Search className="w-3 h-3" />
                   <span>RELEVANT TO YOUR QUERY</span>
@@ -212,18 +224,18 @@ export default function EmailSearchResults({
                 );
               })}
               
-              {/* Show section header for recent emails if we have both types */}
-              {relevantEmails.length > 0 && recentEmails.length > 0 && (
+              {/* Show section header for recent emails if we're showing recents */}
+              {relevantEmails.length > 0 && recentEmails.length > 0 && showRecentEmails && (
                 <div key="recent-header" className="text-xs text-zinc-400 font-medium mt-4 mb-2 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   <span>RECENT EMAILS</span>
                 </div>
               )}
               
-              {/* Render recent emails */}
-              {recentEmails.map((email, index) => (
+              {/* Only render recent emails if showRecentEmails is true or if there are no relevant emails */}
+              {(showRecentEmails || relevantEmails.length === 0) && recentEmails.map((email, index) => (
                 <motion.div
-                  key={generateUniqueKey(email, index + relevantEmails.length)} // Add offset to ensure uniqueness
+                  key={generateUniqueKey(email, index + relevantEmails.length)}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
