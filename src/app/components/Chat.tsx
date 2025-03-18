@@ -484,11 +484,12 @@ export default function Chat() {
   } | null>(null);
 
   useEffect(() => {
-    // Check for API key on component mount
-    const apiKey = localStorage.getItem("openai_api_key");
-    if (!apiKey) {
-      window.location.href = "/playground/keys";
-    }
+    // Load messages and other initializations
+    // The key check below is being removed
+    // const apiKey = localStorage.getItem("openai_api_key");
+    // if (!apiKey) {
+    //   window.location.href = "/playground/keys";
+    // }
   }, []);
 
   useEffect(() => {
@@ -635,27 +636,12 @@ export default function Chat() {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    const apiKey = localStorage.getItem("openai_api_key");
-    if (!apiKey) {
-      window.location.href = "/playground/keys";
-      return;
-    }
-
-    // Check if this is a calendar query but we don't have calendar access
-    if (shouldFetchCalendar(inputMessage) && gmailTokens && !hasCalendarAccess(gmailTokens)) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: inputMessage,
-          isUser: true,
-        },
-        {
-          text: "I need access to your Google Calendar to answer this question. Please reconnect your Gmail account with calendar permissions.",
-          isUser: false,
-        }
-      ]);
-      return;
-    }
+    // Remove API key check
+    // const apiKey = localStorage.getItem("openai_api_key");
+    // if (!apiKey) {
+    //   window.location.href = "/playground/keys";
+    //   return;
+    // }
 
     const newMessage: Message = {
       text: inputMessage,
@@ -677,6 +663,22 @@ export default function Chat() {
     try {
       let emailContext = null;
       let calendarContext = null;
+
+      // Check if this is a calendar query but we don't have calendar access
+      if (shouldFetchCalendar(inputMessage) && gmailTokens && !hasCalendarAccess(gmailTokens)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            text: inputMessage,
+            isUser: true,
+          },
+          {
+            text: "I need access to your Google Calendar to answer this question. Please reconnect your Gmail account with calendar permissions.",
+            isUser: false,
+          }
+        ]);
+        return;
+      }
 
       // Check if we should search emails, but only if this is NOT an email command
       const tokens = localStorage.getItem("gmail_tokens");
@@ -804,7 +806,6 @@ export default function Chat() {
           model,
           temperature,
           systemPrompt,
-          apiKey,
           gmailTokens: tokens ? JSON.parse(tokens) : null, // Pass Gmail tokens for email sending
           chatId,
           maxTokens,
@@ -1032,55 +1033,29 @@ export default function Chat() {
               {messages.length === 0 && !isLoading && (
                 <div className="flex items-center justify-center h-full text-center px-4">
                   
-                  {/* Quick action buttons */}
-                  {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mb-12">
-                    <button
-                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
-                      onClick={() => setInputMessage("Find my recent emails about project updates")}
-                    >
-                      <Search className="w-5 h-5 text-zinc-400" />
-                      <div>
-                        <div className="font-medium text-white">Search Emails</div>
-                        <div className="text-sm text-zinc-500">"Find my recent emails about project updates"</div>
-                      </div>
-                    </button>
-                    
-                    <button
-                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
-                      onClick={() => setInputMessage("Summarize my meeting emails from last week")}
-                    >
-                      <Users className="w-5 h-5 text-zinc-400" />
-                      <div>
-                        <div className="font-medium text-white">Summarize Meetings</div>
-                        <div className="text-sm text-zinc-500">"Summarize my meeting emails from last week"</div>
-                      </div>
-                    </button>
-                    
-                    <button
-                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
-                      onClick={() => setInputMessage("Find my recent order confirmations")}
-                    >
-                      <ShoppingBag className="w-5 h-5 text-zinc-400" />
-                      <div>
-                        <div className="font-medium text-white">Track Orders</div>
-                        <div className="text-sm text-zinc-500">"Find my recent order confirmations"</div>
-                      </div>
-                    </button>
-                    
-                    <button
-                      className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-left p-4 rounded-lg border border-zinc-800 transition-colors"
-                      onClick={() => setInputMessage("Show my upcoming travel itineraries")}
-                    >
-                      <Plane className="w-5 h-5 text-zinc-400" />
-                      <div>
-                        <div className="font-medium text-white">Travel Plans</div>
-                        <div className="text-sm text-zinc-500">"Show my upcoming travel itineraries"</div>
-                      </div>
-                    </button>
-                  </div> */}
+                  {!isGmailConnected && (
+                    <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-6 max-w-lg mb-8">
+                      <h3 className="text-xl font-medium mb-3 text-blue-300">Connect Gmail</h3>
+                      <p className="text-white/80 mb-4">
+                        Connect your Gmail account to enable email search, draft creation, and sending functionality.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          const response = await fetch("/api/gmail/auth");
+                          const { url } = await response.json();
+                          window.location.href = url;
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Connect Gmail
+                      </button>
+                    </div>
+                  )}
                   
-                  {/* Email Summary Dashboard */}
-                  <EmailSummaryDashboard tokens={gmailTokens ? JSON.stringify(gmailTokens) : null} />
+                  {/* Email Summary Dashboard - only show if Gmail is connected */}
+                  {isGmailConnected && (
+                    <EmailSummaryDashboard tokens={gmailTokens ? JSON.stringify(gmailTokens) : null} />
+                  )}
                 </div>
               )}
 

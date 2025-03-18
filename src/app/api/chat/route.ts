@@ -242,7 +242,6 @@ export async function POST(req: Request) {
       messages, 
       temperature, 
       systemPrompt, 
-      apiKey, 
       maxTokens, 
       model: initialModel, 
       emailData, 
@@ -395,9 +394,9 @@ export async function POST(req: Request) {
       }
     }
     
-    // Create OpenAI instance with the client's API key
+    // Create OpenAI instance with an environment variable instead of client API key
     const openai = new OpenAI({
-      apiKey: apiKey
+      apiKey: process.env.OPENAI_API_KEY // Use server environment variable
     });
 
     // Get existing memories and merge similar ones
