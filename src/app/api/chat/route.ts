@@ -153,6 +153,89 @@ ${emailContent.body}`;
   }
 };
 
+// Add a function to generate an email draft directly
+const createEmailDraft = async (userId: string, recipient: string, instructions: string, requestTokens?: any) => {
+  try {
+    // First, try to use tokens from the database
+    const userTokens = await prisma.oAuthTokens.findFirst({
+      where: { userId, provider: 'google' },
+    });
+
+    // If no database tokens, check if we have request tokens
+    let accessToken = userTokens?.accessToken;
+    
+    if (!accessToken && requestTokens?.access_token) {
+      accessToken = requestTokens.access_token;
+      
+      // Store these tokens in the database for future use
+      await prisma.oAuthTokens.upsert({
+        where: {
+          userId_provider: {
+            userId,
+            provider: 'google',
+          }
+        },
+        update: {
+          accessToken: requestTokens.access_token,
+          refreshToken: requestTokens.refresh_token || null,
+          expiryDate: requestTokens.expiry_date ? new Date(requestTokens.expiry_date) : null,
+        },
+        create: {
+          userId,
+          provider: 'google',
+          accessToken: requestTokens.access_token,
+          refreshToken: requestTokens.refresh_token || null,
+          expiryDate: requestTokens.expiry_date ? new Date(requestTokens.expiry_date) : null,
+        },
+      });
+    }
+
+    if (!accessToken) {
+      return { success: false, error: 'Google account not connected' };
+    }
+
+    // Generate email content with AI
+    const emailContent = await generateEmailContent({
+      recipient,
+      instructions,
+    });
+
+    // Initialize Gmail client
+    const gmail = getAuthenticatedGmailClient({ access_token: accessToken });
+
+    // Prepare the email
+    const rawEmail = `From: me
+To: ${recipient}
+Subject: ${emailContent.subject}
+Content-Type: text/plain; charset="UTF-8"
+
+${emailContent.body}`;
+
+    // Create the draft
+    const draftResponse = await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: {
+        message: {
+          raw: Buffer.from(rawEmail).toString('base64'),
+        },
+      },
+    });
+
+    return { 
+      success: true, 
+      draft: {
+        to: recipient,
+        subject: emailContent.subject,
+        body: emailContent.body,
+        draftId: draftResponse.data.id,
+      }
+    };
+  } catch (error) {
+    console.error('Error creating email draft:', error);
+    return { success: false, error: 'Failed to create email draft' };
+  }
+};
+
 export async function POST(req: Request) {
   try {
     const { 
@@ -199,51 +282,107 @@ export async function POST(req: Request) {
     // Check if this is an email sending command
     const emailCommand = isEmailSendCommand(userMessage.text);
     if (emailCommand.isEmailCommand && emailCommand.recipient && emailCommand.instructions) {
-      // Send the email directly
-      const emailResult = await sendEmail(userId, emailCommand.recipient, emailCommand.instructions, gmailTokens);
+      // Skip draft if the user explicitly asks to send immediately
+      const skipDraft = userMessage.text.toLowerCase().includes('send it') || 
+                        userMessage.text.toLowerCase().includes('just send') ||
+                        userMessage.text.toLowerCase().includes('send immediately') ||
+                        userMessage.text.toLowerCase().includes('no draft');
       
-      if (emailResult.success) {
-        // Create a response indicating the email was sent
-        const responseText = `Okay, I've sent a birthday email to ${emailCommand.recipient}. I didn't include a draft, as requested.`;
+      if (skipDraft) {
+        // Send the email directly
+        const emailResult = await sendEmail(userId, emailCommand.recipient, emailCommand.instructions, gmailTokens);
         
-        // Store the AI response
-        const aiMessage = await prisma.message.create({
-          data: {
+        if (emailResult.success) {
+          // Create a response indicating the email was sent
+          const responseText = `Okay, I've sent a birthday email to ${emailCommand.recipient}. I didn't include a draft, as requested.`;
+          
+          // Store the AI response
+          const aiMessage = await prisma.message.create({
+            data: {
+              text: responseText,
+              isUser: false,
+              timestamp: new Date(),
+              chatId: chat.id
+            }
+          });
+
+          return NextResponse.json({
             text: responseText,
             isUser: false,
-            timestamp: new Date(),
-            chatId: chat.id
-          }
-        });
+            timestamp: aiMessage.timestamp,
+            memories: [],
+            remainingRequests: 100, // Just a placeholder
+          });
+        } else {
+          // If email sending failed, inform the user
+          const errorText = `I couldn't send the email. Error: ${emailResult.error}`;
+          
+          // Store the error response
+          const aiMessage = await prisma.message.create({
+            data: {
+              text: errorText,
+              isUser: false,
+              timestamp: new Date(),
+              chatId: chat.id
+            }
+          });
 
-        return NextResponse.json({
-          text: responseText,
-          isUser: false,
-          timestamp: aiMessage.timestamp,
-          memories: [],
-          remainingRequests: 100, // Just a placeholder
-        });
-      } else {
-        // If email sending failed, inform the user
-        const errorText = `I couldn't send the email. Error: ${emailResult.error}`;
-        
-        // Store the error response
-        const aiMessage = await prisma.message.create({
-          data: {
+          return NextResponse.json({
             text: errorText,
             isUser: false,
-            timestamp: new Date(),
-            chatId: chat.id
-          }
-        });
+            timestamp: aiMessage.timestamp,
+            memories: [],
+            remainingRequests: 100, // Just a placeholder
+          });
+        }
+      } else {
+        // Create a draft email instead
+        const draftResult = await createEmailDraft(userId, emailCommand.recipient, emailCommand.instructions, gmailTokens);
+        
+        if (draftResult.success) {
+          // Create a response with the draft info
+          const responseText = `I've created an email draft to ${emailCommand.recipient}. You can review and send it.`;
+          
+          // Store the AI response
+          const aiMessage = await prisma.message.create({
+            data: {
+              text: responseText,
+              isUser: false,
+              timestamp: new Date(),
+              chatId: chat.id
+            }
+          });
 
-        return NextResponse.json({
-          text: errorText,
-          isUser: false,
-          timestamp: aiMessage.timestamp,
-          memories: [],
-          remainingRequests: 100, // Just a placeholder
-        });
+          return NextResponse.json({
+            text: responseText,
+            isUser: false,
+            timestamp: aiMessage.timestamp,
+            memories: [],
+            emailDraft: draftResult.draft, // Include the draft in the response
+            remainingRequests: 100, // Just a placeholder
+          });
+        } else {
+          // If draft creation failed, inform the user
+          const errorText = `I couldn't create the email draft. Error: ${draftResult.error}`;
+          
+          // Store the error response
+          const aiMessage = await prisma.message.create({
+            data: {
+              text: errorText,
+              isUser: false,
+              timestamp: new Date(),
+              chatId: chat.id
+            }
+          });
+
+          return NextResponse.json({
+            text: errorText,
+            isUser: false,
+            timestamp: aiMessage.timestamp,
+            memories: [],
+            remainingRequests: 100, // Just a placeholder
+          });
+        }
       }
     }
 

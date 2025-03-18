@@ -15,16 +15,37 @@ export async function POST(req: Request) {
     }
 
     // Parse the request body
-    const { draftId } = await req.json();
+    const { draftId, tokens } = await req.json();
 
     if (!draftId) {
       return NextResponse.json({ error: 'Draft ID is required' }, { status: 400 });
     }
 
-    // Get user's OAuth tokens
-    const userTokens = await prisma.oAuthTokens.findFirst({
+    // First try to get user's OAuth tokens from database
+    let userTokens = await prisma.oAuthTokens.findFirst({
       where: { userId, provider: 'google' },
     });
+
+    // If no tokens in database, use the ones from the request
+    if (!userTokens && tokens?.access_token) {
+      // Initialize Gmail client with request tokens
+      const gmail = getAuthenticatedGmailClient({ access_token: tokens.access_token });
+      
+      // Send the draft
+      const response = await gmail.users.drafts.send({
+        userId: 'me',
+        requestBody: {
+          id: draftId
+        }
+      });
+
+      // Return the sent message details
+      return NextResponse.json({
+        success: true,
+        messageId: response.data.id,
+        threadId: response.data.threadId
+      });
+    }
 
     if (!userTokens) {
       return NextResponse.json(

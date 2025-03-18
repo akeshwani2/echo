@@ -25,6 +25,7 @@ import { AnimatePresence } from "framer-motion";
 import { Components } from 'react-markdown';
 import EmailSummaryDashboard from "../../components/EmailSummaryDashboard";
 import { motion } from "framer-motion";
+import EmailDraftPreview from "@/components/EmailDraftPreview";
 
 interface Message {
   text: string;
@@ -465,6 +466,12 @@ export default function Chat() {
   const [searchDateRange, setSearchDateRange] = useState<any>(null);
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
   const inputRef = useRef<HTMLInputElement>(null);
+  const [emailDraft, setEmailDraft] = useState<{
+    to: string;
+    subject: string;
+    body: string;
+    draftId?: string;
+  } | null>(null);
 
   useEffect(() => {
     // Check for API key on component mount
@@ -820,6 +827,11 @@ export default function Chat() {
           timestamp: new Date(data.timestamp),
         },
       ]);
+
+      // Check if there's an email draft
+      if (data.emailDraft) {
+        setEmailDraft(data.emailDraft);
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -925,6 +937,46 @@ export default function Chat() {
     setInputMessage(prompt);
     // Auto-focus the input field
     inputRef.current?.focus();
+  };
+
+  const handleSendDraft = async () => {
+    if (!emailDraft?.draftId) {
+      throw new Error('No draft ID available');
+    }
+
+    const tokens = localStorage.getItem("gmail_tokens");
+    if (!tokens) {
+      throw new Error('Gmail not connected');
+    }
+
+    const response = await fetch('/api/gmail/draft/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        draftId: emailDraft.draftId,
+        tokens: JSON.parse(tokens)
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send email');
+    }
+
+    // Close the draft preview
+    setEmailDraft(null);
+
+    // Add a confirmation message
+    setMessages((prev) => [
+      ...prev,
+      {
+        text: `Email to ${emailDraft.to} has been sent successfully.`,
+        isUser: false,
+        // timestamp: new Date(),
+      },
+    ]);
   };
 
   return (
@@ -1184,6 +1236,13 @@ export default function Chat() {
               <EmailPreview
                 email={selectedEmail}
                 onClose={() => setSelectedEmail(null)}
+              />
+            )}
+            {emailDraft && (
+              <EmailDraftPreview
+                draft={emailDraft}
+                onClose={() => setEmailDraft(null)}
+                onSend={handleSendDraft}
               />
             )}
           </AnimatePresence>
