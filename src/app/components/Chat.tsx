@@ -428,6 +428,16 @@ const handleReconnectGmail = async () => {
   }
 };
 
+// Add this function to detect email commands
+const isEmailCommand = (text: string): boolean => {
+  const lowercaseText = text.toLowerCase();
+  
+  return lowercaseText.includes('send an email') || 
+         lowercaseText.includes('send email') || 
+         lowercaseText.includes('email to') ||
+         (lowercaseText.includes('email') && lowercaseText.includes('send'));
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -656,15 +666,21 @@ export default function Chat() {
     setMessages((prev) => [...prev, newMessage]);
     setInputMessage("");
     setIsLoading(true);
-    setFoundEmails([]);
+    
+    // Clear email results only if this is not an email command
+    // This way we keep the relevant emails displayed for regular searches
+    // but hide them for email sending commands
+    if (!isEmailCommand(inputMessage)) {
+      setFoundEmails([]);
+    }
 
     try {
       let emailContext = null;
       let calendarContext = null;
 
-      // Check if we should search emails
+      // Check if we should search emails, but only if this is NOT an email command
       const tokens = localStorage.getItem("gmail_tokens");
-      if (tokens) {
+      if (tokens && !isEmailCommand(inputMessage)) {
         // Check for calendar-related queries
         if (shouldFetchCalendar(inputMessage)) {
           try {
@@ -1167,7 +1183,7 @@ export default function Chat() {
               )}
 
               {/* Email Search Results */}
-              {(isSearchingEmails || foundEmails.length > 0) && (
+              {(isSearchingEmails || foundEmails.length > 0) && !emailDraft && (
                 <EmailSearchResults
                   isSearching={isSearchingEmails}
                   searchQuery={lastSearchQuery}

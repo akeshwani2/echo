@@ -109,7 +109,7 @@ export default function EmailDraftPreview({
         >
           {isSending ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
             </>
           ) : (
             <>
