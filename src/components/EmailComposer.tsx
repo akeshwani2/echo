@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Loader2, X } from 'lucide-react';
+import { Send, Loader2, X, ArrowUpCircleIcon } from 'lucide-react';
 
 interface EmailComposerProps {
   tokens: any;
@@ -219,7 +219,7 @@ export default function EmailComposer({
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4" />
+                      <ArrowUpCircleIcon className="w-4 h-4" />
                       Send Email
                     </>
                   )}
