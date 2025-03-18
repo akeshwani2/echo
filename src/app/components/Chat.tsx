@@ -782,6 +782,7 @@ export default function Chat() {
           temperature,
           systemPrompt,
           apiKey,
+          gmailTokens: tokens ? JSON.parse(tokens) : null, // Pass Gmail tokens for email sending
           chatId,
           maxTokens,
         }),
