@@ -94,13 +94,13 @@ export default function EmailSearchResults({
   }
 
   // Get only relevant emails (those with a relevance score above a threshold)
-  const relevantEmails = emails.filter(email => (email as any).relevanceScore > 15);
+  const relevantEmails = emails.filter(email => (email as any).relevanceScore > 50);
   
   // Get highly relevant emails (those with a very high relevance score)
-  const highlyRelevantEmails = emails.filter(email => (email as any).relevanceScore > 40);
+  const highlyRelevantEmails = emails.filter(email => (email as any).relevanceScore > 90);
   
   // Get recent emails (those with low relevance scores)
-  const recentEmails = emails.filter(email => (email as any).relevanceScore <= 15);
+  const recentEmails = emails.filter(email => (email as any).relevanceScore <= 50);
   
   return (
     <div className="space-y-4 text-white">
@@ -162,7 +162,7 @@ export default function EmailSearchResults({
               {/* Render relevant emails first */}
               {relevantEmails.map((email, index) => {
                 const relevanceScore = (email as any).relevanceScore || 0;
-                const isHighlyRelevant = relevanceScore > 40;
+                const isHighlyRelevant = relevanceScore > 90;
                 
                 return (
                   <motion.div
@@ -172,15 +172,21 @@ export default function EmailSearchResults({
                     exit={{ opacity: 0 }}
                     className={`p-4 rounded-lg ${isHighlyRelevant 
                       ? 'bg-zinc-800/90 border-l-4 border-l-blue-500 border border-white/50' 
-                      : 'bg-zinc-900/90 border-l-4 border-l-blue-400/50 border border-white/50'
+                      : 'bg-zinc-900/90 border border-white/20'
                       } hover:bg-zinc-800/90 transition-all group relative cursor-pointer`}
                     onClick={() => onEmailClick(email)}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <div className="text-sm text-white/90 flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 ${isHighlyRelevant ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-500/10 text-blue-300/80'} rounded-full`}>
-                          {isHighlyRelevant ? 'Highly Relevant' : 'Relevant'}
-                        </span>
+                        {isHighlyRelevant ? (
+                          <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">
+                            Highly Relevant
+                          </span>
+                        ) : relevanceScore > 65 ? (
+                          <span className="text-xs px-2 py-0.5 bg-blue-400/10 text-blue-300/80 rounded-full">
+                            Relevant
+                          </span>
+                        ) : null}
                         {email.from}
                       </div>
                       <div className="flex items-center gap-2">

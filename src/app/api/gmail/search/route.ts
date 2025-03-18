@@ -55,77 +55,110 @@ function getCurrentYearDateRange(): DateRange {
 
 // Function to calculate relevance score based on query and email content
 function calculateRelevanceScore(query: string, email: any): number {
-  const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+  // Clean and normalize the query
+  const normalizedQuery = query.toLowerCase().trim();
+  const queryTerms = normalizedQuery.split(/\s+/).filter(term => term.length > 2);
   if (queryTerms.length === 0) return 0;
   
   const subject = email.subject?.toLowerCase() || '';
   const body = email.body?.toLowerCase() || '';
   const snippet = email.snippet?.toLowerCase() || '';
   const from = email.from?.toLowerCase() || '';
+  const labels = email.labels || [];
   
   let score = 0;
   
-  // Check for exact phrase match (highest relevance)
-  if (subject.includes(query.toLowerCase()) || body.includes(query.toLowerCase())) {
-    score += 100;
-  }
+  // Handle queries specifically about emails from a person
+  const isFromQuery = normalizedQuery.includes('from') || 
+                      normalizedQuery.includes('emails from') || 
+                      normalizedQuery.includes('any emails from') || 
+                      normalizedQuery.includes('do i have') || 
+                      normalizedQuery.startsWith('from:');
   
-  // Check if query is specifically about a sender/person
-  const personQueryIndicators = ['from', 'sent by', 'email from', 'emails from', 'messages from', 'by'];
-  let isPersonQuery = false;
-  
-  // Check if query is asking about emails from a specific person
-  for (const indicator of personQueryIndicators) {
-    if (query.toLowerCase().includes(indicator)) {
-      isPersonQuery = true;
-      break;
+  // Extract potential name from query (after "from" or similar phrases)
+  let personName = '';
+  if (isFromQuery) {
+    // Try to extract name after common patterns
+    const fromPatterns = [
+      /from\s+([a-z\s]+)/i,
+      /emails\s+from\s+([a-z\s]+)/i,
+      /email\s+from\s+([a-z\s]+)/i, 
+      /do\s+i\s+have\s+any\s+emails\s+from\s+([a-z\s]+)/i
+    ];
+    
+    for (const pattern of fromPatterns) {
+      const match = normalizedQuery.match(pattern);
+      if (match && match[1]) {
+        personName = match[1].trim();
+        break;
+      }
     }
-  }
-  
-  // If this is a query about a specific sender and the sender matches, give it a high score
-  if (isPersonQuery) {
-    for (const term of queryTerms) {
-      if (from.includes(term) && term.length > 3) {
-        // This is likely the person's name in the query
-        score += 80; // High score for sender match in a sender-specific query
+    
+    // If we found a potential name, this becomes a very specific query
+    if (personName) {
+      // Direct match with sender name is highly relevant
+      if (from.includes(personName)) {
+        score += 100;
+      } else {
+        // If no match with the sender, this email is not relevant
+        return 10; // Return a very low score
       }
     }
   }
   
-  // Check for individual term matches
-  for (const term of queryTerms) {
-    // Subject matches are highly relevant
-    if (subject.includes(term)) {
-      score += 20;
-    }
+  // Exact phrase match in key fields
+  if (subject.includes(normalizedQuery) || 
+      from.includes(normalizedQuery) || 
+      body.includes(normalizedQuery)) {
+    score += 100;
+  }
+  
+  // Check for document signing and high-priority emails
+  if (normalizedQuery.includes('document') || 
+      normalizedQuery.includes('sign') || 
+      normalizedQuery.includes('documenso')) {
     
-    // Snippet matches are quite relevant
-    if (snippet.includes(term)) {
-      score += 10;
-    }
-    
-    // Body matches are relevant
-    if (body.includes(term)) {
-      score += 5;
-    }
-    
-    // From matches can be relevant
-    if (from.includes(term)) {
-      score += 15; // Increased from 3 to 15 to give more weight to sender matches
+    const signTerms = ['sign', 'documenso', 'document', 'signature', 'agreement', 'contract'];
+    for (const term of signTerms) {
+      if (subject.includes(term) || from.includes(term)) {
+        score += 70;
+      }
+      if (body.includes(term) || snippet.includes(term)) {
+        score += 30;
+      }
     }
   }
   
-  // Boost score for recent emails
+  // For searches about specific people that aren't in a "from X" format
+  for (const term of queryTerms) {
+    if (term.length > 3 && from.includes(term)) {
+      // If a significant word in the query matches the sender, likely they're looking for emails from this person
+      score += 80;
+    }
+  }
+  
+  // Check for individual term matches (with less weight)
+  for (const term of queryTerms) {
+    if (subject.includes(term)) {
+      score += 15;
+    }
+    if (snippet.includes(term)) {
+      score += 8;
+    }
+    if (body.includes(term)) {
+      score += 4;
+    }
+  }
+  
+  // Boost score for recent emails, but much less than before
   const emailDate = new Date(email.date);
   const now = new Date();
   const daysDifference = Math.floor((now.getTime() - emailDate.getTime()) / (1000 * 3600 * 24));
   
   if (daysDifference < 1) {
-    score += 15; // Today
+    score += 5; // Today
   } else if (daysDifference < 7) {
-    score += 10; // This week
-  } else if (daysDifference < 30) {
-    score += 5;  // This month
+    score += 3; // This week
   }
   
   return score;
