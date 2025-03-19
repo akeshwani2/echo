@@ -1087,9 +1087,9 @@ export default function Chat() {
                       >
                         {/* Memory indicator */}
                         {!message.isUser && message.hasMemory && (
-                          <div className="flex items-center gap-1.5 text-xs text-purple-400 mb-1.5 bg-purple-900/20 py-1 px-2 rounded-md w-fit animate-pulse">
+                          <div className="flex items-center gap-1.5 text-xs text-purple-400 mb-1.5 bg-purple-900/20 py-1 px-2 rounded-md w-fit">
                             <Brain size={14} className="text-purple-300" />
-                            <span className="font-medium">Memory updated</span>
+                            <span className="tracking-tight">Memory updated</span>
                           </div>
                         )}
                         
