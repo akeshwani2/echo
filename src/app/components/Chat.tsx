@@ -1085,13 +1085,13 @@ export default function Chat() {
                             : "bg-zinc-900 text-gray-100"
                         }`}
                       >
-                        {/* Memory indicator */}
+                        {/* Memory indicator
                         {!message.isUser && message.hasMemory && (
                           <div className="flex items-center gap-1.5 text-xs text-purple-400 mb-1.5 bg-purple-900/20 py-1 px-2 rounded-md w-fit">
                             <Brain size={14} className="text-purple-300" />
                             <span className="tracking-tight">Memory updated</span>
                           </div>
-                        )}
+                        )} */}
                         
                         <ReactMarkdown
                           components={{

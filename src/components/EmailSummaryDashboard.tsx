@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Calendar, CheckSquare, Clock, ExternalLink, Inbox, Mail } from 'lucide-react';
+import { AlertCircle, Calendar, CheckSquare, Clock, ExternalLink, Inbox, Mail, ListTodo, RefreshCw } from 'lucide-react';
 import { Email } from '@/types/email';
 import { useUser } from "@clerk/nextjs";
 
@@ -104,6 +104,31 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         };
       })
     );
+  };
+
+  // Function to handle quick action clicks
+  const handleQuickAction = (action: string) => {
+    const messageElement = document.querySelector('textarea') || document.querySelector('input[type="text"]');
+    if (messageElement) {
+      const inputElement = messageElement as HTMLInputElement | HTMLTextAreaElement;
+      
+      if (action === 'summarize') {
+        inputElement.value = "Summarize my recent emails";
+      } else if (action === 'todo') {
+        inputElement.value = "Create a to-do list from my urgent emails";
+      }
+      
+      // Simulate Enter key press to send the message
+      const enterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true
+      });
+      inputElement.dispatchEvent(enterEvent);
+    }
   };
 
   useEffect(() => {
@@ -234,13 +259,13 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
   if (summary.isLoading) {
     return (
       <div className="w-full max-w-4xl">
-        <div className="bg-zinc-900/80 rounded-xl p-6 border border-zinc-800">
+        <div className="bg-black rounded-xl p-6 border border-zinc-800">
           <div className="flex items-center justify-center h-40">
             <div className="flex flex-col items-center">
               <div className="flex space-x-2 mb-4">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
               <p className="text-zinc-400">Loading your email summary...</p>
             </div>
@@ -280,11 +305,14 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         </span>
       </h3>
       
+      {/* Quick Actions Section */}
+      
+      
       {/* Calendar Access Section */}
       {parsedTokens && !hasCalendarAccess(parsedTokens) && (
-        <div className="mb-6 bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+        <div className="mb-6 bg-black rounded-xl p-5 border border-zinc-800">
           <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-blue-400" />
+            <Calendar className="w-5 h-5 text-white" />
             <h4 className="text-lg font-medium text-white">Calendar Access</h4>
           </div>
           <div className="flex flex-col space-y-4">
@@ -294,7 +322,7 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
             <div>
               <button
                 onClick={handleReconnectGmail}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors"
+                className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-zinc-800 transition-colors border border-zinc-700"
               >
                 Connect Calendar
               </button>
@@ -306,9 +334,9 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
         {/* Immediate Action Emails */}
         {summary.immediateAction.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+          <div className="bg-black rounded-xl p-5 border border-zinc-800">
             <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="w-5 h-5 text-red-400" />
+              <AlertCircle className="w-5 h-5 text-white" />
               <h4 className="text-lg text-white tracking-tight font-medium">Immediate Action</h4>
             </div>
             <div className="space-y-4">
@@ -318,17 +346,17 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
+                  className="block p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
                       {email.isSummaryLoading ? (
                         <span className="inline-flex items-center">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse mr-2"></span>
                           {email.subject}
                         </span>
                       ) : (
-                        <span className="text-blue-300">{email.aiSummary || email.subject}</span>
+                        <span className="text-white">{email.aiSummary || email.subject}</span>
                       )}
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
@@ -350,9 +378,9 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         
         {/* Medium Priority */}
         {summary.mediumPriority.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+          <div className="bg-black rounded-xl p-5 border border-zinc-800">
             <div className="flex items-center gap-2 mb-4">
-              <CheckSquare className="w-5 h-5 text-yellow-400" />
+              <CheckSquare className="w-5 h-5 text-white" />
               <h4 className="text-lg font-medium text-white">Medium Priority</h4>
             </div>
             <div className="space-y-4">
@@ -362,17 +390,17 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
+                  className="block p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
                       {email.isSummaryLoading ? (
                         <span className="inline-flex items-center">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse mr-2"></span>
                           {email.subject}
                         </span>
                       ) : (
-                        <span className="text-yellow-200">{email.aiSummary || email.subject}</span>
+                        <span className="text-white">{email.aiSummary || email.subject}</span>
                       )}
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
@@ -394,9 +422,9 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
         
         {/* Other Emails */}
         {summary.other.length > 0 && (
-          <div className="bg-zinc-900/80 rounded-xl p-5 border border-zinc-800">
+          <div className="bg-black rounded-xl p-5 border border-zinc-800">
             <div className="flex items-center gap-2 mb-4">
-              <Inbox className="w-5 h-5 text-green-400" />
+              <Inbox className="w-5 h-5 text-white" />
               <h4 className="text-lg font-medium text-white">Other</h4>
             </div>
             <div className="space-y-4">
@@ -406,17 +434,17 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
                   href={getGmailUrl(email.id)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block p-4 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
+                  className="block p-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition-colors text-left"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="text-sm font-medium text-white line-clamp-2 leading-snug">
                       {email.isSummaryLoading ? (
                         <span className="inline-flex items-center">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse mr-2"></span>
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse mr-2"></span>
                           {email.subject}
                         </span>
                       ) : (
-                        <span className="text-green-200">{email.aiSummary || email.subject}</span>
+                        <span className="text-white">{email.aiSummary || email.subject}</span>
                       )}
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-1 ml-2" />
@@ -438,4 +466,4 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
       </div>
     </motion.div>
   );
-} 
+}
