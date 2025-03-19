@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Inbox,
   Clock,
+  Brain,
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
@@ -31,6 +32,7 @@ interface Message {
   text: string;
   isUser: boolean;
   // timestamp: Date;
+  hasMemory?: boolean; // Add this flag to indicate memory was created
 }
 
 interface Memory {
@@ -823,7 +825,11 @@ export default function Chat() {
         setRemainingRequests(data.remainingRequests);
       }
 
+      // Flag to track if memory was updated
+      let memoryUpdated = false;
+
       if (data.memories && data.memories.length > 0) {
+        memoryUpdated = true;
         const memoryResponse = await fetch("/api/memory");
         if (memoryResponse.ok) {
           const data = (await memoryResponse.json()) as APIMemoryResponse;
@@ -842,6 +848,7 @@ export default function Chat() {
           text: data.text,
           isUser: false,
           timestamp: new Date(data.timestamp),
+          hasMemory: memoryUpdated
         },
       ]);
 
@@ -1078,6 +1085,14 @@ export default function Chat() {
                             : "bg-zinc-900 text-gray-100"
                         }`}
                       >
+                        {/* Memory indicator */}
+                        {!message.isUser && message.hasMemory && (
+                          <div className="flex items-center gap-1.5 text-xs text-purple-400 mb-1.5 bg-purple-900/20 py-1 px-2 rounded-md w-fit animate-pulse">
+                            <Brain size={14} className="text-purple-300" />
+                            <span className="font-medium">Memory updated</span>
+                          </div>
+                        )}
+                        
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => (

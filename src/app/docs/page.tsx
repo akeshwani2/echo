@@ -47,10 +47,7 @@ export default function DocsPage() {
             </div>
           </div>
         </section>
-
-        {/* Need Help? */}
       </main>
-      <Footer />
     </div>
   )
 }
