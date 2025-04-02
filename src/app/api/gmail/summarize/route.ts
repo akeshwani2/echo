@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     try {
       // Use Gemini to generate the summary
-      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       
       const result = await geminiModel.generateContent({
         contents: [{ 

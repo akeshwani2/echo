@@ -337,7 +337,7 @@ export default function EmailSummaryDashboard({ tokens }: EmailSummaryDashboardP
           <div className="bg-black rounded-xl p-5 border border-zinc-800">
             <div className="flex items-center gap-2 mb-4">
               <AlertCircle className="w-5 h-5 text-white" />
-              <h4 className="text-lg text-white tracking-tight font-medium">Immediate Action</h4>
+              <h4 className="text-lg text-white tracking-tight font-medium">High Priority</h4>
             </div>
             <div className="space-y-4">
               {summary.immediateAction.map((email) => (

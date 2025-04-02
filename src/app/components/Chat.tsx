@@ -129,49 +129,39 @@ const SUGGESTED_ACTIONS: SuggestedAction[] = [
   },
 ];
 
-const DEFAULT_PROMPT = `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights and assistance.
+const DEFAULT_PROMPT = `You are Echo, an intelligent email assistant. Your primary purpose is to help users manage and understand their emails while providing relevant insights.
 
-Core Functionality:
-1. ALWAYS start responses with a clear overview:
-   📊 **Summary Dashboard**
-   - Total emails found: [number]
-   - High priority: [number]
-   - Needs action: [number]
-   - Categories found: [list]
+Core Guidelines:
+1. Your responses MUST be extremely concise and DIRECTLY relevant to the user's query.
+2. Do NOT include a summary dashboard unless specifically asked to summarize emails.
+3. Only respond with information that's directly relevant to the user's query.
+4. Never add filler text or unnecessary explanations.
 
-2. Format ALL email references exactly like this:
-   Title/Subject [](email_id)
+When referencing emails, use this format:
+• "Subject" [](email_id) - Brief relevant detail
 
-   Examples:
-   • "Project Update" [](123456)
-   • Meeting Invitation [](789012)
+For complex queries that require categorization:
+1. Answer the query directly first
+2. Group only relevant information by category using minimal headers
+3. Only include emails that match the specific query
 
-3. Group by category:
-   📄 **Documents**
-   • Document name [](email_id)
-     └─ Status: ⏳ Pending
+Always use:
+- Direct, concise language
+- Minimal formatting (use emojis and indicators only when helpful)
+- Simple priority indicators: [High], [Medium], [Low] when relevant
 
-   📅 **Meetings**
-   • Meeting title [](email_id)
-     └─ ⏰ Time: 2 PM
-
-4. Action items:
-   ⚡ **Action Required**
-   • [⚠️ High] Sign document [](email_id)
-   • [📌 Medium] Review file [](email_id)
-
-Style Guide:
-- Keep responses concise
-- Use headers with emojis
-- Use status indicators: ✅ ⏳ ❌
-- Use priority levels: [⚠️ High] [📌 Medium] [Low]
-- Add dividers (---) between sections
-
-IMPORTANT: Always put email IDs in empty markdown links: [](id_here)
-Never show raw email IDs in the text.`;
+IMPORTANT: 
+- Always put email IDs in empty markdown links: [](id_here)
+- Never show raw email IDs in the text
+- Responses should be as brief as possible while answering the query`;
 
 // Add this function before the Chat component
 const shouldSearchEmails = (query: string): boolean => {
+  // First check if this is a calendar query - if so, don't search emails
+  if (shouldFetchCalendar(query) || isCalendarCreateRequest(query)) {
+    return false;
+  }
+  
   // Normalize the query
   const normalizedQuery = query.toLowerCase().trim();
   
@@ -189,9 +179,6 @@ const shouldSearchEmails = (query: string): boolean => {
     "received",
     "from",
     "to",
-    "meeting",
-    "appointment",
-    "schedule",
     "order",
     "purchase",
     "tracking",
@@ -201,7 +188,6 @@ const shouldSearchEmails = (query: string): boolean => {
     "contact",
     "reply",
     "forward",
-    "calendar",
     "invite",
     "notification",
     "newsletter",
@@ -438,6 +424,33 @@ const isEmailCommand = (text: string): boolean => {
          lowercaseText.includes('send email') || 
          lowercaseText.includes('email to') ||
          (lowercaseText.includes('email') && lowercaseText.includes('send'));
+};
+
+// Add this function to detect calendar creation requests
+const isCalendarCreateRequest = (query: string): boolean => {
+  const createKeywords = [
+    'schedule',
+    'create event',
+    'add event',
+    'add to calendar',
+    'set up meeting',
+    'schedule meeting',
+    'create meeting',
+    'book appointment'
+  ];
+  
+  return createKeywords.some(keyword => 
+    query.toLowerCase().includes(keyword.toLowerCase())
+  );
+};
+
+// Add this function to check if calendar write access is available
+const hasCalendarWriteAccess = (tokens: any): boolean => {
+  if (!tokens) return false;
+  
+  // Check if the token's scope includes calendar write access
+  const scope = tokens.scope || '';
+  return scope.includes('https://www.googleapis.com/auth/calendar.events');
 };
 
 export default function Chat() {
@@ -790,6 +803,110 @@ export default function Chat() {
             setIsSearchingEmails(false);
           }
         }
+      }
+
+      // Check for calendar event creation requests
+      if (isCalendarCreateRequest(inputMessage)) {
+        try {
+          const tokens = localStorage.getItem("gmail_tokens");
+          if (!tokens) {
+            throw new Error("Gmail not connected");
+          }
+
+          const parsedTokens = JSON.parse(tokens);
+          if (!hasCalendarWriteAccess(parsedTokens)) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                text: inputMessage,
+                isUser: true,
+              },
+              {
+                text: "I need write access to your Google Calendar to create events. Please reconnect your Gmail account with calendar permissions.",
+                isUser: false,
+              }
+            ]);
+            return;
+          }
+
+          // The AI response will contain the event details in a structured format
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messages: [...messages, { text: inputMessage, isUser: true }],
+              model,
+              temperature,
+              systemPrompt: systemPrompt + "\nWhen creating calendar events, please format the response as JSON with the following fields: summary, description, startDateTime (ISO string), endDateTime (ISO string), and attendees (array of email strings).",
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to get event details from AI");
+          }
+
+          const data = await response.json();
+          
+          // Try to parse the event details from the AI response
+          try {
+            const eventMatch = data.text.match(/\{[\s\S]*\}/);
+            if (!eventMatch) {
+              throw new Error("No event details found in AI response");
+            }
+
+            const eventDetails = JSON.parse(eventMatch[0]);
+            
+            // Create the calendar event
+            const createResponse = await fetch("/api/calendar/create", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                ...eventDetails,
+                tokens: parsedTokens,
+              }),
+            });
+
+            if (!createResponse.ok) {
+              throw new Error("Failed to create calendar event");
+            }
+
+            const createData = await createResponse.json();
+            
+            // Add success message
+            setMessages((prev) => [
+              ...prev,
+              {
+                text: inputMessage,
+                isUser: true,
+              },
+              {
+                text: `I've created the event "${eventDetails.summary}" in your calendar for ${new Date(eventDetails.startDateTime).toLocaleString()}.`,
+                isUser: false,
+              }
+            ]);
+          } catch (err) {
+            console.error("Error parsing event details:", err);
+            throw new Error("Failed to create calendar event");
+          }
+        } catch (error) {
+          console.error("Calendar creation error:", error);
+          setMessages((prev) => [
+            ...prev,
+            {
+              text: inputMessage,
+              isUser: true,
+            },
+            {
+              text: `Sorry, I couldn't create the calendar event. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              isUser: false,
+            }
+          ]);
+        }
+        return;
       }
 
       // Make the chat API call with user message, email context, and calendar context
