@@ -350,7 +350,11 @@ const shouldFetchCalendar = (query: string): boolean => {
     'what is on my calendar',
     'what am i doing',
     'what\'s happening',
-    'what is happening'
+    'what is happening',
+    'upcoming',
+    'coming up',
+    'planned',
+    'scheduled'
   ];
   
   const timeKeywords = [
@@ -362,34 +366,43 @@ const shouldFetchCalendar = (query: string): boolean => {
     'upcoming'
   ];
   
+  // Normalize the query
+  const normalizedQuery = query.toLowerCase();
+  
   // Check if the query contains calendar-related keywords
   const hasCalendarKeyword = calendarKeywords.some(keyword => 
-    query.toLowerCase().includes(keyword.toLowerCase())
+    normalizedQuery.includes(keyword.toLowerCase())
   );
   
   // Check if the query contains time-related keywords
   const hasTimeKeyword = timeKeywords.some(keyword => 
-    query.toLowerCase().includes(keyword.toLowerCase())
+    normalizedQuery.includes(keyword.toLowerCase())
   );
   
-  // Return true if the query contains both calendar and time keywords
-  return hasCalendarKeyword && hasTimeKeyword;
+  // Return true if the query contains calendar keywords (time keywords are optional)
+  // This makes the function more flexible
+  return hasCalendarKeyword;
 };
 
 // Add this function to determine the time range for calendar queries
 const getCalendarTimeRange = (query: string): string => {
   const query_lower = query.toLowerCase();
   
+  // Check for specific time periods
   if (query_lower.includes('today')) {
     return 'today';
   } else if (query_lower.includes('tomorrow')) {
     return 'tomorrow';
-  } else if (query_lower.includes('this week') || query_lower.includes('upcoming')) {
-    return 'week';
   } else if (query_lower.includes('next week')) {
     return 'nextWeek';
   } else if (query_lower.includes('this month')) {
     return 'month';
+  } else if (query_lower.includes('this week') || 
+             query_lower.includes('upcoming') || 
+             query_lower.includes('coming up') ||
+             query_lower.includes('scheduled') ||
+             query_lower.includes('planned')) {
+    return 'week';
   } else {
     // Default to week if no specific time range is mentioned
     return 'week';
@@ -400,9 +413,16 @@ const getCalendarTimeRange = (query: string): string => {
 const hasCalendarAccess = (tokens: any): boolean => {
   if (!tokens) return false;
   
-  // Check if the token's scope includes calendar access
+  // Check if the token's scope includes any calendar access
   const scope = tokens.scope || '';
-  return scope.includes('https://www.googleapis.com/auth/calendar.readonly');
+  const calendarScopes = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.events.readonly'
+  ];
+  
+  return calendarScopes.some(calendarScope => scope.includes(calendarScope));
 };
 
 // Add this function to handle reconnecting Gmail with calendar permissions
@@ -450,7 +470,12 @@ const hasCalendarWriteAccess = (tokens: any): boolean => {
   
   // Check if the token's scope includes calendar write access
   const scope = tokens.scope || '';
-  return scope.includes('https://www.googleapis.com/auth/calendar.events');
+  const writeScopes = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/calendar.events'
+  ];
+  
+  return writeScopes.some(writeScope => scope.includes(writeScope));
 };
 
 export default function Chat() {
@@ -692,12 +717,13 @@ export default function Chat() {
             isUser: false,
           }
         ]);
+        setIsLoading(false);
         return;
       }
 
-      // Check if we should search emails, but only if this is NOT an email command
+      // Check for calendar-related queries first
       const tokens = localStorage.getItem("gmail_tokens");
-      if (tokens && !isEmailCommand(inputMessage)) {
+      if (tokens) {
         // Check for calendar-related queries
         if (shouldFetchCalendar(inputMessage)) {
           try {
@@ -737,8 +763,8 @@ export default function Chat() {
           }
         }
 
-        // Existing email search logic
-        if (shouldSearchEmails(inputMessage)) {
+        // Then check for email searches
+        if (!isEmailCommand(inputMessage) && shouldSearchEmails(inputMessage)) {
           // Extract date range from query if present
           const dateInfo = extractDateRangeFromQuery(inputMessage);
           const searchQuery = dateInfo ? dateInfo.cleanQuery : inputMessage;

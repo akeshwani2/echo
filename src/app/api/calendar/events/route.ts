@@ -14,9 +14,16 @@ import {
 const hasCalendarAccess = (tokens: any): boolean => {
   if (!tokens) return false;
   
-  // Check if the token's scope includes calendar access
+  // Check if the token's scope includes any calendar access
   const scope = tokens.scope || '';
-  return scope.includes('https://www.googleapis.com/auth/calendar.readonly');
+  const calendarScopes = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.events.readonly'
+  ];
+  
+  return calendarScopes.some(calendarScope => scope.includes(calendarScope));
 };
 
 export async function POST(req: Request) {
